@@ -106,7 +106,7 @@ class PostContent(Base):
         index=True,
     )
     content: Mapped[str] = mapped_column(Text, nullable=False)
-    metadata: Mapped[dict] = mapped_column(JSON, nullable=True)
+    extra_metadata: Mapped[dict] = mapped_column("metadata", JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime,
         default=datetime.utcnow,
@@ -174,7 +174,7 @@ class Evaluation(Base):
     metric_name: Mapped[str] = mapped_column(String(100), nullable=False)
     score: Mapped[float] = mapped_column(Float, nullable=False)
     evaluator_type: Mapped[str] = mapped_column(String(50), nullable=False)
-    metadata: Mapped[dict] = mapped_column(JSON, nullable=True)
+    extra_metadata: Mapped[dict] = mapped_column("metadata", JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime,
         default=datetime.utcnow,

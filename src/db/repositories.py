@@ -175,7 +175,7 @@ class PostContentRepository:
             post_id=post_id,
             platform=platform,
             content=content,
-            metadata=metadata or {},
+            extra_metadata=metadata or {},
         )
         self.db.add(post_content)
         self.db.commit()
@@ -238,7 +238,7 @@ class PostContentRepository:
         if post_content:
             post_content.content = content
             if metadata:
-                post_content.metadata = metadata
+                post_content.extra_metadata = metadata
             self.db.commit()
             self.db.refresh(post_content)
         return post_content
@@ -390,7 +390,7 @@ class EvaluationRepository:
             metric_name=metric_name,
             score=score,
             evaluator_type=evaluator_type,
-            metadata=metadata or {},
+            extra_metadata=metadata or {},
         )
         self.db.add(evaluation)
         self.db.commit()
