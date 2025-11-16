@@ -71,6 +71,31 @@ Fallback 2: openai/gpt-3.5-turbo
 
 Each model attempt includes exponential backoff retry logic.
 
+## 🏛️ Architecture Highlights
+
+### Repository Pattern
+We use the Repository pattern for clean data access:
+- `PostRepository` - Manages post records
+- `PostContentRepository` - Manages platform-specific content
+- `ReviewRepository` - Tracks human reviews
+- `EvaluationRepository` - Stores quality metrics
+
+### Platform-Specific Schemas
+Type-safe Pydantic models for each platform:
+- `LinkedInPost` - Professional posts (max 3000 chars, limited hashtags)
+- `InstagramPost` - Visual-first (required image, 10-30 hashtags)
+- `WordPressPost` - Section-based structure with flexible image placement
+
+### State Management
+Pydantic-based state model for the LangGraph workflow:
+- Automatic validation
+- Type safety throughout the workflow
+- Easy serialization for checkpointing
+
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for detailed design decisions.
+
+---
+
 ## 📁 Project Structure
 
 ```
@@ -134,16 +159,45 @@ social-media-post-gen/
 └── README.md               # This file
 ```
 
+## 📊 Project Status
+
+### Current Phase: Database Implementation (Phase 3)
+
+**Completed**:
+- ✅ Project infrastructure and setup
+- ✅ All dependencies installed via UV
+- ✅ Complete module skeleton (2,644 lines of code)
+- ✅ Repository pattern implementation
+- ✅ Pydantic schemas for all platforms
+- ✅ Architecture documentation
+
+**In Progress**:
+- 🚧 Alembic database migrations
+- 🚧 Repository unit tests
+
+**Next Steps**:
+- 📋 LLM integration (OpenRouter + Langfuse)
+- 📋 Image generation (DALL-E 3)
+- 📋 Agent node implementation
+- 📋 API endpoint implementation
+
+See [TODO.md](TODO.md) for detailed progress tracking.
+
+---
+
 ## 🚀 Quick Start
 
 ### Prerequisites
 
 - Python 3.12+
-- Docker & Docker Compose
-- OpenRouter API key ([get one here](https://openrouter.ai/))
+- UV package manager
+- Docker & Docker Compose (for deployment)
+- OpenRouter API key ([get one here](https://openrouter.ai/)) - Required for LLM calls
 - (Optional) Langfuse account for observability
 
-### Installation
+### Development Setup
+
+**Note**: The system is currently in development. Basic functionality is not yet implemented.
 
 1. **Clone and navigate to project**:
 ```bash
@@ -395,6 +449,14 @@ ENVIRONMENT=development
 LOG_LEVEL=INFO
 ```
 
+## 📈 Progress Metrics
+
+- **Total Lines of Code**: ~2,644
+- **Python Modules**: 25 files
+- **Repositories**: 4 classes with 23+ methods
+- **Pydantic Models**: 7 content schemas
+- **Completion**: ~20% (infrastructure complete, implementation in progress)
+
 ## 📚 Learning Objectives
 
 This project serves as a comprehensive learning resource for:
@@ -437,48 +499,77 @@ This project serves as a comprehensive learning resource for:
 
 ## 📝 Development Roadmap
 
-### Phase 1: Core Infrastructure ✅
-- [x] Project setup and structure
-- [x] Configuration management
-- [x] Database models and migrations
-- [x] Docker configuration
+See [TODO.md](TODO.md) for detailed task breakdown.
 
-### Phase 2: LLM Integration 🚧
-- [ ] OpenRouter client with retry logic
-- [ ] Fallback chain implementation
-- [ ] Image generation with DALL-E 3
-- [ ] Langfuse tracing setup
+### Phase 1: Infrastructure & Setup ✅ COMPLETE
+- ✅ Project structure and dependencies
+- ✅ Configuration management with Pydantic Settings
+- ✅ Repository pattern implementation
+- ✅ Platform-specific Pydantic schemas
+- ✅ Complete module skeleton (~2,644 lines)
 
-### Phase 3: Agent Implementation 📋
-- [ ] State schema definition
-- [ ] Node implementations
-- [ ] Graph construction
-- [ ] Checkpoint persistence
+### Phase 2: Core Modules (Skeleton) ✅ COMPLETE
+- ✅ Database models (SQLAlchemy)
+- ✅ Repository classes (4 repositories)
+- ✅ Agent state and schemas
+- ✅ LLM router and observability classes
+- ✅ API route signatures
+- ✅ Evaluation framework
 
-### Phase 4: API Development 📋
-- [ ] FastAPI application setup
-- [ ] Core endpoints (generate, get, approve, reject)
-- [ ] Background task handling
-- [ ] Error handling middleware
+### Phase 3: Database Implementation 🚧 IN PROGRESS
+- 🚧 Alembic migrations
+- 📋 Repository unit tests
+- 📋 Database integration tests
 
-### Phase 5: Evaluation Pipeline 📋
-- [ ] Quality metric evaluators
-- [ ] Platform-specific validators
-- [ ] LLM-as-judge implementation
-- [ ] Evaluation runner and storage
+### Phase 4: LLM Integration 📋 NEXT
+- 📋 OpenRouter client implementation
+- 📋 Fallback chain with retry logic
+- 📋 Langfuse tracing integration
+- 📋 Cost and token tracking
 
-### Phase 6: Testing & Documentation 📋
-- [ ] Comprehensive test suite
-- [ ] Architecture documentation
-- [ ] API documentation
-- [ ] Learning journal compilation
+### Phase 5: Image Generation 📋
+- 📋 DALL-E 3 integration via OpenRouter
+- 📋 Image prompt generation
+- 📋 Local storage implementation
 
-### Phase 7: Enhancements 🔮
-- [ ] Web UI for content review
-- [ ] Webhook notifications
-- [ ] Multi-language support
-- [ ] A/B testing framework
-- [ ] Actual platform publishing (LinkedIn, WordPress APIs)
+### Phase 6: Agent Implementation 📋
+- 📋 Topic analysis node
+- 📋 Content generation nodes (3 platforms)
+- 📋 Human-in-the-loop nodes
+- 📋 Graph construction and checkpointing
+
+### Phase 7: API Implementation 📋
+- 📋 Generate endpoint with background tasks
+- 📋 Review endpoints (approve/reject/edit)
+- 📋 Evaluation endpoints
+- 📋 Image serving
+
+### Phase 8: Evaluation Implementation 📋
+- 📋 Quality evaluators (readability, grammar)
+- 📋 Platform-specific evaluators
+- 📋 LLM-as-judge implementation
+
+### Phase 9: Docker & Deployment 📋
+- 📋 Dockerfile (multi-stage build)
+- 📋 docker-compose.yml
+- 📋 Container orchestration
+
+### Phase 10: Testing 📋
+- 📋 Unit tests (TDD approach)
+- 📋 Integration tests
+- 📋 >80% code coverage
+
+### Phase 11: Documentation 📋
+- ✅ Architecture documentation
+- 📋 Evaluation metrics guide
+- 📋 Learning journal
+- 📋 API examples
+
+### Phase 12: Future Enhancements ⏸️
+- ⏸️ Web UI for review
+- ⏸️ Multi-language support
+- ⏸️ A/B testing
+- ⏸️ Actual platform publishing
 
 ## 🤝 Contributing
 
