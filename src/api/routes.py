@@ -10,7 +10,12 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from src.db.crud import get_post, get_posts
+from src.db.repositories import (
+    EvaluationRepository,
+    PostContentRepository,
+    PostRepository,
+    ReviewRepository,
+)
 from src.db.database import get_db
 
 # Create API router

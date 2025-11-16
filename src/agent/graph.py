@@ -30,14 +30,14 @@ def should_regenerate(state: PostGenerationState) -> Literal["regenerate", "fina
     This is a conditional edge function that routes based on approval status.
     
     Args:
-        state: Current agent state
+        state: Current agent state (Pydantic model)
         
     Returns:
         Next node to execute
     """
-    if state["approval_status"] == "approved":
+    if state.approval_status == "approved":
         return "finalize"
-    elif state["approval_status"] == "rejected":
+    elif state.approval_status == "rejected":
         return "regenerate"
     else:
         # Still pending review

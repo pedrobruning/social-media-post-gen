@@ -7,7 +7,7 @@ from typing import Dict, List
 
 from sqlalchemy.orm import Session
 
-from src.db.crud import create_evaluation, get_post, get_post_contents
+from src.db.repositories import EvaluationRepository, PostContentRepository, PostRepository
 from src.evaluation.evaluators import (
     LLMJudgeEvaluator,
     PlatformEvaluator,
@@ -37,12 +37,17 @@ class EvaluationRunner:
         Returns:
             Dict of evaluator types to list of scores
         """
+        # Initialize repositories
+        post_repo = PostRepository(db)
+        content_repo = PostContentRepository(db)
+        eval_repo = EvaluationRepository(db)
+        
         # Get post and content
-        post = get_post(db, post_id)
+        post = post_repo.get_by_id(post_id)
         if not post:
             raise ValueError(f"Post {post_id} not found")
         
-        contents = get_post_contents(db, post_id)
+        contents = content_repo.get_by_post_id(post_id)
         
         results = {
             "quality": [],
@@ -55,8 +60,7 @@ class EvaluationRunner:
             # Quality metrics
             quality_scores = self.quality_evaluator.evaluate_all(content.content)
             for metric_name, score in quality_scores.items():
-                create_evaluation(
-                    db=db,
+                eval_repo.create(
                     post_id=post_id,
                     metric_name=metric_name,
                     score=score,
@@ -67,8 +71,7 @@ class EvaluationRunner:
             # Platform-specific metrics
             platform_scores = self._evaluate_platform(content.platform, content.metadata)
             for metric_name, score in platform_scores.items():
-                create_evaluation(
-                    db=db,
+                eval_repo.create(
                     post_id=post_id,
                     metric_name=metric_name,
                     score=score,
