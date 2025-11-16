@@ -1,10 +1,240 @@
-# Python-generated files
+# =============================================================================
+# Python
+# =============================================================================
+# Byte-compiled / optimized / DLL files
 __pycache__/
-*.py[oc]
-build/
-dist/
-wheels/
-*.egg-info
+*.py[cod]
+*$py.class
 
-# Virtual environments
-.venv
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+cover/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IPython
+profile_default/
+ipython_config.py
+
+# pyenv
+.python-version
+
+# =============================================================================
+# Virtual Environments
+# =============================================================================
+.venv/
+venv/
+ENV/
+env/
+.ENV/
+.env/
+
+# =============================================================================
+# Environment Variables & Secrets
+# =============================================================================
+# DO NOT commit .env files - they contain secrets!
+.env
+.env.local
+.env.*.local
+*.key
+*.pem
+secrets.yaml
+secrets.yml
+
+# =============================================================================
+# IDE & Editor Files
+# =============================================================================
+# VSCode
+.vscode/
+*.code-workspace
+
+# PyCharm
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
+*.swp
+*.swo
+*~
+
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+auto-save-list
+tramp
+.\#*
+
+# =============================================================================
+# Database
+# =============================================================================
+# SQLite (if used for testing)
+*.db
+*.sqlite
+*.sqlite3
+
+# Database dumps
+*.sql
+*.dump
+
+# Alembic
+# Keep migrations, but ignore auto-generated ones if any
+# alembic/versions/*.py  # Uncomment if you want to ignore migrations
+
+# =============================================================================
+# Docker
+# =============================================================================
+# Docker Compose override files
+docker-compose.override.yml
+docker-compose.*.local.yml
+
+# =============================================================================
+# Project-Specific
+# =============================================================================
+# Generated images (user content)
+storage/images/*
+!storage/images/.gitkeep
+
+# Generated posts/content (if stored locally)
+storage/posts/
+storage/content/
+
+# Logs
+*.log
+logs/
+*.log.*
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.bak
+*.swp
+
+# OS-specific files
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.Spotlight-V100
+.Trashes
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# =============================================================================
+# Langfuse / Observability
+# =============================================================================
+# Local Langfuse data (if self-hosted)
+langfuse_data/
+.langfuse/
+
+# =============================================================================
+# UV Package Manager
+# =============================================================================
+# UV lock file (optional - some teams commit it for reproducibility)
+# uv.lock  # Uncomment if you want to ignore the lock file
+
+# =============================================================================
+# Testing
+# =============================================================================
+# Test output
+.pytest_cache/
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# =============================================================================
+# Documentation Build
+# =============================================================================
+# Sphinx documentation
+docs/_build/
+docs/.doctrees/
+
+# MkDocs
+site/
+
+# =============================================================================
+# Miscellaneous
+# =============================================================================
+# Backup files
+*.bak
+*.backup
+*~
+
+# Archive files
+*.zip
+*.tar.gz
+*.rar
+
+# Local configuration overrides
+local_settings.py
+local_config.py
