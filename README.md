@@ -2,6 +2,16 @@
 
 > An intelligent multi-platform content generation system built with LangGraph, featuring human-in-the-loop review, image generation, and comprehensive observability.
 
+## 🤖 Development with Specialized Agents
+
+This project includes **6 specialized agent definitions** to help complete development with mastery. Each agent handles a specific phase with clear responsibilities, patterns, and success criteria.
+
+📋 **Quick Start**: See [`.claude/AGENT_QUICK_START.md`](.claude/AGENT_QUICK_START.md)
+📚 **Agent Details**: See [`.claude/agents/README.md`](.claude/agents/README.md)
+🏗️ **Architecture Guide**: See [`CLAUDE.md`](CLAUDE.md)
+
+**Current Phase**: Database Implementation (Phase 3) → Use `database-tdd-agent`
+
 ## 🎯 Project Overview
 
 This project is a learning-focused implementation of an agentic AI system that generates optimized social media content for LinkedIn, Instagram, and WordPress. It demonstrates modern AI engineering practices including:
