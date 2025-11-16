@@ -4,20 +4,19 @@ This module contains comprehensive tests for all repository classes following TD
 """
 
 import pytest
-from datetime import datetime
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
-from src.db.models import Base, Post, PostContent, Review, Evaluation
+from src.db.models import Base
 from src.db.repositories import (
-    PostRepository,
-    PostContentRepository,
-    ReviewRepository,
     EvaluationRepository,
+    PostContentRepository,
+    PostRepository,
+    ReviewRepository,
 )
 
-
 # ===== Test Database Setup =====
+
 
 @pytest.fixture(scope="function")
 def db_session():
@@ -50,6 +49,7 @@ def db_session():
 
 
 # ===== PostRepository Tests =====
+
 
 class TestPostRepository:
     """Tests for PostRepository class."""
@@ -179,6 +179,7 @@ class TestPostRepository:
 
         # Act (small delay to ensure different timestamp)
         import time
+
         time.sleep(0.01)
         updated_post = repo.update_status(post.id, "approved")
 
@@ -284,6 +285,7 @@ class TestPostRepository:
 
 
 # ===== PostContentRepository Tests =====
+
 
 class TestPostContentRepository:
     """Tests for PostContentRepository class."""
@@ -434,6 +436,7 @@ class TestPostContentRepository:
 
 # ===== ReviewRepository Tests =====
 
+
 class TestReviewRepository:
     """Tests for ReviewRepository class."""
 
@@ -560,6 +563,7 @@ class TestReviewRepository:
 
 # ===== EvaluationRepository Tests =====
 
+
 class TestEvaluationRepository:
     """Tests for EvaluationRepository class."""
 
@@ -595,8 +599,12 @@ class TestEvaluationRepository:
         eval_repo = EvaluationRepository(db_session)
         post = post_repo.create(topic="Test")
 
-        eval_repo.create(post_id=post.id, metric_name="readability", score=8.5, evaluator_type="quality")
-        eval_repo.create(post_id=post.id, metric_name="engagement", score=7.2, evaluator_type="llm_judge")
+        eval_repo.create(
+            post_id=post.id, metric_name="readability", score=8.5, evaluator_type="quality"
+        )
+        eval_repo.create(
+            post_id=post.id, metric_name="engagement", score=7.2, evaluator_type="llm_judge"
+        )
         eval_repo.create(post_id=post.id, metric_name="seo", score=9.0, evaluator_type="platform")
 
         # Act
@@ -616,8 +624,12 @@ class TestEvaluationRepository:
         eval_repo = EvaluationRepository(db_session)
         post = post_repo.create(topic="Test")
 
-        eval_repo.create(post_id=post.id, metric_name="readability", score=8.5, evaluator_type="quality")
-        eval_repo.create(post_id=post.id, metric_name="engagement", score=7.2, evaluator_type="llm_judge")
+        eval_repo.create(
+            post_id=post.id, metric_name="readability", score=8.5, evaluator_type="quality"
+        )
+        eval_repo.create(
+            post_id=post.id, metric_name="engagement", score=7.2, evaluator_type="llm_judge"
+        )
 
         # Act
         readability_eval = eval_repo.get_by_metric(post.id, "readability")
@@ -638,10 +650,18 @@ class TestEvaluationRepository:
         post2 = post_repo.create(topic="Post 2")
         post3 = post_repo.create(topic="Post 3")
 
-        eval_repo.create(post_id=post1.id, metric_name="readability", score=8.0, evaluator_type="quality")
-        eval_repo.create(post_id=post2.id, metric_name="readability", score=9.0, evaluator_type="quality")
-        eval_repo.create(post_id=post3.id, metric_name="readability", score=7.0, evaluator_type="quality")
-        eval_repo.create(post_id=post1.id, metric_name="engagement", score=6.0, evaluator_type="llm_judge")
+        eval_repo.create(
+            post_id=post1.id, metric_name="readability", score=8.0, evaluator_type="quality"
+        )
+        eval_repo.create(
+            post_id=post2.id, metric_name="readability", score=9.0, evaluator_type="quality"
+        )
+        eval_repo.create(
+            post_id=post3.id, metric_name="readability", score=7.0, evaluator_type="quality"
+        )
+        eval_repo.create(
+            post_id=post1.id, metric_name="engagement", score=6.0, evaluator_type="llm_judge"
+        )
 
         # Act
         avg_readability = eval_repo.get_average_score_by_metric("readability")
@@ -660,8 +680,12 @@ class TestEvaluationRepository:
         eval_repo = EvaluationRepository(db_session)
         post = post_repo.create(topic="Test")
 
-        eval_repo.create(post_id=post.id, metric_name="readability", score=8.5, evaluator_type="quality")
-        eval_repo.create(post_id=post.id, metric_name="engagement", score=7.2, evaluator_type="llm_judge")
+        eval_repo.create(
+            post_id=post.id, metric_name="readability", score=8.5, evaluator_type="quality"
+        )
+        eval_repo.create(
+            post_id=post.id, metric_name="engagement", score=7.2, evaluator_type="llm_judge"
+        )
 
         # Act
         deleted_count = eval_repo.delete_by_post_id(post.id)

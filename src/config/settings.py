@@ -4,38 +4,36 @@ This module provides type-safe configuration management by loading environment
 variables and validating them using Pydantic. All configuration is centralized here.
 """
 
-from typing import List
-
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
     """Application settings loaded from environment variables.
-    
+
     All settings are loaded from .env file or environment variables.
     See .env.example for all available configuration options.
     """
-    
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
         case_sensitive=False,  # Allow uppercase env vars (standard convention)
         extra="ignore",
     )
-    
+
     # OpenRouter Configuration
     openrouter_api_key: str = Field(
         ...,
         description="OpenRouter API key for LLM and image generation",
     )
-    
+
     # Database Configuration
     database_url: str = Field(
         default="postgresql://admin:secret@localhost:5432/social_media_posts",
         description="PostgreSQL connection string",
     )
-    
+
     # Langfuse Observability
     langfuse_public_key: str = Field(
         default="",
@@ -49,7 +47,7 @@ class Settings(BaseSettings):
         default="https://cloud.langfuse.com",
         description="Langfuse host URL",
     )
-    
+
     # Application Configuration
     environment: str = Field(
         default="development",
@@ -67,7 +65,7 @@ class Settings(BaseSettings):
         default=8000,
         description="API port to bind to",
     )
-    
+
     # Image Storage Configuration
     image_storage_path: str = Field(
         default="./storage/images",
@@ -81,13 +79,13 @@ class Settings(BaseSettings):
         default="png",
         description="Image format: png, jpeg, webp",
     )
-    
+
     # LangGraph Checkpoint Configuration
     checkpoint_table_name: str = Field(
         default="checkpoints",
         description="PostgreSQL table name for agent checkpoints",
     )
-    
+
     # LLM Model Configuration
     primary_model: str = Field(
         default="anthropic/claude-3.5-sonnet",
@@ -107,7 +105,7 @@ class Settings(BaseSettings):
         default=2000,
         description="Maximum tokens for text generation",
     )
-    
+
     # Image Generation Configuration
     image_model: str = Field(
         default="dall-e-3",
@@ -125,7 +123,7 @@ class Settings(BaseSettings):
         default="vivid",
         description="Image style: vivid, natural",
     )
-    
+
     # Evaluation Configuration
     auto_evaluate: bool = Field(
         default=True,
@@ -135,7 +133,7 @@ class Settings(BaseSettings):
         default="openai/gpt-4o",
         description="LLM model for evaluation (LLM-as-judge)",
     )
-    
+
     # Security Configuration
     secret_key: str = Field(
         default="change-me-in-production",
@@ -145,24 +143,23 @@ class Settings(BaseSettings):
         default="http://localhost:3000,http://localhost:8080",
         description="Comma-separated list of allowed CORS origins",
     )
-    
+
     # Rate Limiting
     rate_limit_per_minute: int = Field(
         default=60,
         description="Maximum requests per minute per IP",
     )
-    
+
     @property
-    def fallback_models_list(self) -> List[str]:
+    def fallback_models_list(self) -> list[str]:
         """Parse fallback models from comma-separated string."""
         return [m.strip() for m in self.fallback_models.split(",") if m.strip()]
-    
+
     @property
-    def cors_origins_list(self) -> List[str]:
+    def cors_origins_list(self) -> list[str]:
         """Parse CORS origins from comma-separated string."""
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
 
 
 # Global settings instance
 settings = Settings()
-

@@ -5,13 +5,10 @@ All posts, content, reviews, and evaluations are stored here.
 """
 
 from datetime import datetime
-from typing import List
 
 from sqlalchemy import (
     JSON,
-    Column,
     DateTime,
-    Enum,
     Float,
     ForeignKey,
     Integer,
@@ -23,12 +20,13 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 class Base(DeclarativeBase):
     """Base class for all database models."""
+
     pass
 
 
 class Post(Base):
     """Main post record tracking the generation workflow.
-    
+
     Attributes:
         id: Primary key
         topic: Original topic provided by user
@@ -37,9 +35,9 @@ class Post(Base):
         created_at: When the post was created
         updated_at: When the post was last updated
     """
-    
+
     __tablename__ = "posts"
-    
+
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     topic: Mapped[str] = mapped_column(String(500), nullable=False)
     status: Mapped[str] = mapped_column(
@@ -60,19 +58,19 @@ class Post(Base):
         onupdate=datetime.utcnow,
         nullable=False,
     )
-    
+
     # Relationships
-    contents: Mapped[List["PostContent"]] = relationship(
+    contents: Mapped[list["PostContent"]] = relationship(
         "PostContent",
         back_populates="post",
         cascade="all, delete-orphan",
     )
-    reviews: Mapped[List["Review"]] = relationship(
+    reviews: Mapped[list["Review"]] = relationship(
         "Review",
         back_populates="post",
         cascade="all, delete-orphan",
     )
-    evaluations: Mapped[List["Evaluation"]] = relationship(
+    evaluations: Mapped[list["Evaluation"]] = relationship(
         "Evaluation",
         back_populates="post",
         cascade="all, delete-orphan",
@@ -81,7 +79,7 @@ class Post(Base):
 
 class PostContent(Base):
     """Platform-specific content for a post.
-    
+
     Attributes:
         id: Primary key
         post_id: Foreign key to Post
@@ -90,9 +88,9 @@ class PostContent(Base):
         metadata: Additional platform-specific metadata (JSON)
         created_at: When the content was generated
     """
-    
+
     __tablename__ = "post_contents"
-    
+
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     post_id: Mapped[int] = mapped_column(
         Integer,
@@ -112,14 +110,14 @@ class PostContent(Base):
         default=datetime.utcnow,
         nullable=False,
     )
-    
+
     # Relationships
     post: Mapped["Post"] = relationship("Post", back_populates="contents")
 
 
 class Review(Base):
     """Human review actions on posts.
-    
+
     Attributes:
         id: Primary key
         post_id: Foreign key to Post
@@ -127,9 +125,9 @@ class Review(Base):
         feedback: Human feedback text
         reviewed_at: When the review occurred
     """
-    
+
     __tablename__ = "reviews"
-    
+
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     post_id: Mapped[int] = mapped_column(
         Integer,
@@ -144,14 +142,14 @@ class Review(Base):
         default=datetime.utcnow,
         nullable=False,
     )
-    
+
     # Relationships
     post: Mapped["Post"] = relationship("Post", back_populates="reviews")
 
 
 class Evaluation(Base):
     """Evaluation metrics for generated content.
-    
+
     Attributes:
         id: Primary key
         post_id: Foreign key to Post
@@ -161,9 +159,9 @@ class Evaluation(Base):
         metadata: Additional evaluation metadata (JSON)
         created_at: When the evaluation was performed
     """
-    
+
     __tablename__ = "evaluations"
-    
+
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     post_id: Mapped[int] = mapped_column(
         Integer,
@@ -180,7 +178,6 @@ class Evaluation(Base):
         default=datetime.utcnow,
         nullable=False,
     )
-    
+
     # Relationships
     post: Mapped["Post"] = relationship("Post", back_populates="evaluations")
-

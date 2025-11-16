@@ -4,18 +4,10 @@ This module defines all API endpoints for creating, retrieving,
 and managing social media posts.
 """
 
-from typing import List, Optional
-
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from src.db.repositories import (
-    EvaluationRepository,
-    PostContentRepository,
-    PostRepository,
-    ReviewRepository,
-)
 from src.db.database import get_db
 
 # Create API router
@@ -25,13 +17,13 @@ router = APIRouter()
 # Request/Response models
 class GeneratePostRequest(BaseModel):
     """Request model for generating a post."""
-    
+
     topic: str
 
 
 class GeneratePostResponse(BaseModel):
     """Response model after initiating post generation."""
-    
+
     post_id: int
     status: str
     message: str
@@ -39,20 +31,20 @@ class GeneratePostResponse(BaseModel):
 
 class PostResponse(BaseModel):
     """Response model for post details."""
-    
+
     post_id: int
     topic: str
     status: str
-    image_url: Optional[str]
-    linkedin_post: Optional[dict]
-    instagram_post: Optional[dict]
-    wordpress_post: Optional[dict]
+    image_url: str | None
+    linkedin_post: dict | None
+    instagram_post: dict | None
+    wordpress_post: dict | None
     created_at: str
 
 
 class ApprovePostResponse(BaseModel):
     """Response model for post approval."""
-    
+
     post_id: int
     status: str
     message: str
@@ -60,13 +52,13 @@ class ApprovePostResponse(BaseModel):
 
 class RejectPostRequest(BaseModel):
     """Request model for rejecting a post."""
-    
+
     feedback: str
 
 
 class EditPostRequest(BaseModel):
     """Request model for editing platform content."""
-    
+
     platform: str
     content: str
 
@@ -79,16 +71,16 @@ async def generate_post(
     db: Session = Depends(get_db),
 ):
     """Generate social media posts for a topic.
-    
+
     This endpoint initiates the post generation workflow in the background.
     The agent will generate content for LinkedIn, Instagram, and WordPress,
     then wait for human review.
-    
+
     Args:
         request: Topic to generate posts about
         background_tasks: FastAPI background tasks
         db: Database session
-        
+
     Returns:
         Post ID and status
     """
@@ -105,14 +97,14 @@ async def get_post_by_id(
     db: Session = Depends(get_db),
 ):
     """Get a post by ID with all generated content.
-    
+
     Args:
         post_id: Post database ID
         db: Database session
-        
+
     Returns:
         Post details with all platform content
-        
+
     Raises:
         HTTPException: If post not found
     """
@@ -120,21 +112,21 @@ async def get_post_by_id(
     pass
 
 
-@router.get("/posts", response_model=List[PostResponse])
+@router.get("/posts", response_model=list[PostResponse])
 async def list_posts(
     skip: int = 0,
     limit: int = 100,
-    status: Optional[str] = None,
+    status: str | None = None,
     db: Session = Depends(get_db),
 ):
     """List all posts with optional filtering.
-    
+
     Args:
         skip: Number of records to skip (pagination)
         limit: Maximum number of records to return
         status: Optional status filter
         db: Database session
-        
+
     Returns:
         List of posts
     """
@@ -149,17 +141,17 @@ async def approve_post(
     db: Session = Depends(get_db),
 ):
     """Approve all generated content for a post.
-    
+
     This resumes the agent workflow and finalizes the post.
-    
+
     Args:
         post_id: Post database ID
         background_tasks: FastAPI background tasks
         db: Database session
-        
+
     Returns:
         Approval confirmation
-        
+
     Raises:
         HTTPException: If post not found or not in review state
     """
@@ -178,18 +170,18 @@ async def reject_post(
     db: Session = Depends(get_db),
 ):
     """Reject generated content and provide feedback for regeneration.
-    
+
     The agent will use the feedback to regenerate improved content.
-    
+
     Args:
         post_id: Post database ID
         request: Rejection feedback
         background_tasks: FastAPI background tasks
         db: Database session
-        
+
     Returns:
         Rejection confirmation
-        
+
     Raises:
         HTTPException: If post not found or not in review state
     """
@@ -207,15 +199,15 @@ async def edit_post_content(
     db: Session = Depends(get_db),
 ):
     """Edit content for a specific platform.
-    
+
     Args:
         post_id: Post database ID
         request: Platform and new content
         db: Database session
-        
+
     Returns:
         Edit confirmation
-        
+
     Raises:
         HTTPException: If post not found
     """
@@ -230,17 +222,17 @@ async def evaluate_post(
     db: Session = Depends(get_db),
 ):
     """Trigger evaluation for a post.
-    
+
     Runs all evaluators on the generated content.
-    
+
     Args:
         post_id: Post database ID
         background_tasks: FastAPI background tasks
         db: Database session
-        
+
     Returns:
         Evaluation initiation confirmation
-        
+
     Raises:
         HTTPException: If post not found
     """
@@ -254,17 +246,16 @@ async def get_post_evaluations(
     db: Session = Depends(get_db),
 ):
     """Get evaluation results for a post.
-    
+
     Args:
         post_id: Post database ID
         db: Database session
-        
+
     Returns:
         List of evaluation metrics and scores
-        
+
     Raises:
         HTTPException: If post not found
     """
     # TODO: Implement get evaluations logic
     pass
-

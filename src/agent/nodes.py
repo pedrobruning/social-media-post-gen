@@ -4,20 +4,18 @@ This module defines all the nodes (functions) that make up the agent workflow.
 Each node performs a specific task in the content generation pipeline.
 """
 
-from typing import Dict
-
 from src.agent.state import PostGenerationState
 
 
-def analyze_topic(state: PostGenerationState) -> Dict:
+def analyze_topic(state: PostGenerationState) -> dict:
     """Analyze the topic to extract themes, audience, and visual concepts.
-    
+
     This is the first node in the workflow. It analyzes the user's topic
     to understand what content needs to be generated.
-    
+
     Args:
         state: Current agent state
-        
+
     Returns:
         Dict with updated state fields
     """
@@ -29,14 +27,14 @@ def analyze_topic(state: PostGenerationState) -> Dict:
     pass
 
 
-def generate_image(state: PostGenerationState) -> Dict:
+def generate_image(state: PostGenerationState) -> dict:
     """Generate an image for the post using DALL-E 3.
-    
+
     Creates a visual asset that can be reused across all platforms.
-    
+
     Args:
         state: Current agent state
-        
+
     Returns:
         Dict with image_url and image_prompt fields
     """
@@ -48,14 +46,14 @@ def generate_image(state: PostGenerationState) -> Dict:
     pass
 
 
-def generate_linkedin(state: PostGenerationState) -> Dict:
+def generate_linkedin(state: PostGenerationState) -> dict:
     """Generate LinkedIn post content.
-    
+
     Creates a professional post optimized for LinkedIn (max 3000 chars).
-    
+
     Args:
         state: Current agent state
-        
+
     Returns:
         Dict with linkedin_post field
     """
@@ -67,14 +65,14 @@ def generate_linkedin(state: PostGenerationState) -> Dict:
     pass
 
 
-def generate_instagram(state: PostGenerationState) -> Dict:
+def generate_instagram(state: PostGenerationState) -> dict:
     """Generate Instagram post content.
-    
+
     Creates a visual-focused caption with hashtags.
-    
+
     Args:
         state: Current agent state
-        
+
     Returns:
         Dict with instagram_post field
     """
@@ -86,14 +84,14 @@ def generate_instagram(state: PostGenerationState) -> Dict:
     pass
 
 
-def generate_wordpress(state: PostGenerationState) -> Dict:
+def generate_wordpress(state: PostGenerationState) -> dict:
     """Generate WordPress article content.
-    
+
     Creates a long-form article with proper structure and SEO.
-    
+
     Args:
         state: Current agent state
-        
+
     Returns:
         Dict with wordpress_post field
     """
@@ -105,15 +103,15 @@ def generate_wordpress(state: PostGenerationState) -> Dict:
     pass
 
 
-def wait_for_approval(state: PostGenerationState) -> Dict:
+def wait_for_approval(state: PostGenerationState) -> dict:
     """Wait for human approval of generated content.
-    
+
     This is the human-in-the-loop checkpoint. The agent pauses here
     until a human reviews and approves or rejects the content.
-    
+
     Args:
         state: Current agent state
-        
+
     Returns:
         Dict with approval_status field
     """
@@ -125,14 +123,14 @@ def wait_for_approval(state: PostGenerationState) -> Dict:
     }
 
 
-def apply_feedback(state: PostGenerationState) -> Dict:
+def apply_feedback(state: PostGenerationState) -> dict:
     """Apply human feedback to regenerate content.
-    
+
     Uses the feedback from rejection to improve the content.
-    
+
     Args:
         state: Current agent state (includes feedback)
-        
+
     Returns:
         Dict with updated state for regeneration
     """
@@ -143,14 +141,14 @@ def apply_feedback(state: PostGenerationState) -> Dict:
     pass
 
 
-def finalize(state: PostGenerationState) -> Dict:
+def finalize(state: PostGenerationState) -> dict:
     """Finalize the post after approval.
-    
+
     Saves all content to the database and marks the post as approved.
-    
+
     Args:
         state: Current agent state
-        
+
     Returns:
         Dict with final status
     """
@@ -163,12 +161,12 @@ def finalize(state: PostGenerationState) -> Dict:
     }
 
 
-def handle_error(state: PostGenerationState) -> Dict:
+def handle_error(state: PostGenerationState) -> dict:
     """Handle errors that occur during generation.
-    
+
     Args:
         state: Current agent state (includes error)
-        
+
     Returns:
         Dict with error handling updates
     """
@@ -177,4 +175,3 @@ def handle_error(state: PostGenerationState) -> Dict:
     # 2. Determine if retry is possible
     # 3. Update state appropriately
     pass
-
