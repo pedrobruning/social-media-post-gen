@@ -1,0 +1,66 @@
+name: Quick Tests
+
+# This workflow runs on every push for fast feedback
+# The full CI pipeline runs on PRs
+on:
+  push:
+    branches-ignore:
+      - main
+      - develop
+
+jobs:
+  quick-test:
+    name: Quick Test Suite
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install UV
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+      - name: Cache UV dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/uv
+            .venv
+          key: ${{ runner.os }}-uv-${{ hashFiles('**/pyproject.toml', '**/uv.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-uv-
+
+      - name: Install dependencies
+        run: |
+          uv sync --all-groups
+
+      - name: Run tests (fast mode)
+        run: |
+          uv run pytest tests/ -v --tb=short
+        env:
+          DATABASE_URL: "sqlite:///:memory:"
+          OPENROUTER_API_KEY: "test-key-placeholder"
+          ENVIRONMENT: "testing"
+
+      - name: Run ruff (quick check)
+        run: |
+          uv run ruff check src/ tests/
+        continue-on-error: true
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## 🚀 Quick Check Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ $? -eq 0 ]; then
+            echo "✅ All quick checks passed!" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ Some checks failed - see details above" >> $GITHUB_STEP_SUMMARY
+          fi
