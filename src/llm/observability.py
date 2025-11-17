@@ -65,8 +65,15 @@ class ObservabilityManager:
         if not self.enabled:
             return
 
-        # TODO: Implement Langfuse LLM call tracing
-        pass
+        if self.client:
+            self.client.generation(
+                name="llm_call",
+                model=model,
+                input=prompt,
+                output=response,
+                usage={"total_tokens": tokens},
+                metadata=metadata or {},
+            )
 
     def trace_agent_execution(
         self,
@@ -88,8 +95,20 @@ class ObservabilityManager:
         if not self.enabled:
             return
 
-        # TODO: Implement agent execution tracing
-        pass
+        if self.client:
+            trace_metadata = {
+                "post_id": post_id,
+                "topic": topic,
+                "status": status,
+                "duration_ms": duration_ms,
+            }
+            if metadata:
+                trace_metadata.update(metadata)
+
+            self.client.trace(
+                name="agent_execution",
+                metadata=trace_metadata,
+            )
 
     def trace_custom_event(
         self,
@@ -107,8 +126,14 @@ class ObservabilityManager:
         if not self.enabled:
             return
 
-        # TODO: Implement custom event tracing
-        pass
+        if self.client:
+            event_metadata = {"post_id": post_id}
+            event_metadata.update(data)
+
+            self.client.event(
+                name=event_name,
+                metadata=event_metadata,
+            )
 
     def flush(self) -> None:
         """Flush any pending traces to Langfuse."""

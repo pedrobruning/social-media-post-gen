@@ -4,9 +4,14 @@ This module provides intelligent routing to multiple LLM providers via OpenRoute
 with automatic fallback and retry logic for resilience.
 """
 
+import logging
+import time
+
 from langchain_openai import ChatOpenAI
 
 from src.config.settings import settings
+
+logger = logging.getLogger(__name__)
 
 
 class LLMRouter:
@@ -44,6 +49,9 @@ class LLMRouter:
         # Build model chain (primary + fallbacks)
         self.model_chain = [self.primary_model] + self.fallback_models
 
+        # Retry configuration
+        self.max_retries = 3
+
     def generate(
         self,
         prompt: str,
@@ -65,8 +73,53 @@ class LLMRouter:
         Raises:
             Exception: If all models in the chain fail
         """
-        # TODO: Implement LLM generation with fallback
-        pass
+        temp = temperature if temperature is not None else self.temperature
+        max_tok = max_tokens if max_tokens is not None else self.max_tokens
+
+        for model in self.model_chain:
+            try:
+                response = self._call_model_with_retry(model, prompt, system_prompt, temp, max_tok)
+                logger.info(f"Successfully generated with {model}")
+                return response
+            except Exception as e:
+                logger.warning(f"Model {model} failed: {e}")
+                continue
+
+        raise Exception("All models in fallback chain failed")
+
+    def _call_model_with_retry(
+        self,
+        model: str,
+        prompt: str,
+        system_prompt: str | None,
+        temperature: float,
+        max_tokens: int,
+    ) -> str:
+        """Call model with exponential backoff retry.
+
+        Args:
+            model: Model identifier
+            prompt: User prompt
+            system_prompt: System prompt
+            temperature: Generation temperature
+            max_tokens: Maximum tokens
+
+        Returns:
+            Generated text
+
+        Raises:
+            Exception: If all retries fail
+        """
+        for attempt in range(self.max_retries):
+            try:
+                return self._call_model(model, prompt, system_prompt, temperature, max_tokens)
+            except Exception:
+                if attempt < self.max_retries - 1:
+                    sleep_time = 2**attempt
+                    logger.debug(f"Retry {attempt + 1} after {sleep_time}s")
+                    time.sleep(sleep_time)
+                else:
+                    raise
 
     def _call_model(
         self,
@@ -88,8 +141,15 @@ class LLMRouter:
         Returns:
             Generated text
         """
-        # TODO: Implement OpenRouter API call
-        pass
+        client = self._create_client(model)
+
+        messages = []
+        if system_prompt:
+            messages.append({"role": "system", "content": system_prompt})
+        messages.append({"role": "user", "content": prompt})
+
+        response = client.invoke(messages)
+        return response.content
 
     def _create_client(self, model: str) -> ChatOpenAI:
         """Create LangChain ChatOpenAI client for OpenRouter.
