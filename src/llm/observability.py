@@ -4,7 +4,7 @@ This module provides observability for all LLM calls and agent executions
 using Langfuse, enabling debugging, monitoring, and cost tracking.
 """
 
-from typing import Any, Dict, Optional
+from typing import Any
 
 from langfuse import Langfuse
 
@@ -13,12 +13,12 @@ from src.config.settings import settings
 
 class ObservabilityManager:
     """Manager for Langfuse observability and tracing.
-    
+
     This class wraps Langfuse to provide observability for:
     - Individual LLM calls (with prompts, responses, tokens, latency)
     - Agent workflow executions
     - Custom events (image generation, human review, etc.)
-    
+
     Example:
         obs = ObservabilityManager()
         obs.trace_llm_call(
@@ -29,13 +29,11 @@ class ObservabilityManager:
             latency_ms=150
         )
     """
-    
+
     def __init__(self):
         """Initialize Langfuse client if credentials are available."""
-        self.enabled = bool(
-            settings.langfuse_public_key and settings.langfuse_secret_key
-        )
-        
+        self.enabled = bool(settings.langfuse_public_key and settings.langfuse_secret_key)
+
         if self.enabled:
             self.client = Langfuse(
                 public_key=settings.langfuse_public_key,
@@ -44,7 +42,7 @@ class ObservabilityManager:
             )
         else:
             self.client = None
-    
+
     def trace_llm_call(
         self,
         model: str,
@@ -52,10 +50,10 @@ class ObservabilityManager:
         response: str,
         tokens: int,
         latency_ms: float,
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> None:
         """Trace an LLM API call.
-        
+
         Args:
             model: Model identifier used
             prompt: Input prompt
@@ -66,20 +64,20 @@ class ObservabilityManager:
         """
         if not self.enabled:
             return
-        
+
         # TODO: Implement Langfuse LLM call tracing
         pass
-    
+
     def trace_agent_execution(
         self,
         post_id: int,
         topic: str,
         status: str,
         duration_ms: float,
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> None:
         """Trace a full agent workflow execution.
-        
+
         Args:
             post_id: Post database ID
             topic: Original topic
@@ -89,18 +87,18 @@ class ObservabilityManager:
         """
         if not self.enabled:
             return
-        
+
         # TODO: Implement agent execution tracing
         pass
-    
+
     def trace_custom_event(
         self,
         event_name: str,
         post_id: int,
-        data: Dict[str, Any],
+        data: dict[str, Any],
     ) -> None:
         """Trace a custom event (image generation, human review, etc.).
-        
+
         Args:
             event_name: Name of the event
             post_id: Related post ID
@@ -108,10 +106,10 @@ class ObservabilityManager:
         """
         if not self.enabled:
             return
-        
+
         # TODO: Implement custom event tracing
         pass
-    
+
     def flush(self) -> None:
         """Flush any pending traces to Langfuse."""
         if self.enabled and self.client:
@@ -120,4 +118,3 @@ class ObservabilityManager:
 
 # Global observability manager instance
 observability = ObservabilityManager()
-

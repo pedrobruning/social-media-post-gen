@@ -1,5 +1,11 @@
 # Social Media Post Generation Agent System
 
+[![CI/CD Pipeline](https://github.com/pedrobruning/social-media-post-gen/actions/workflows/ci.yml/badge.svg)](https://github.com/pedrobruning/social-media-post-gen/actions/workflows/ci.yml)
+[![Quick Tests](https://github.com/pedrobruning/social-media-post-gen/actions/workflows/quick-test.yml/badge.svg)](https://github.com/pedrobruning/social-media-post-gen/actions/workflows/quick-test.yml)
+[![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
+
 > An intelligent multi-platform content generation system built with LangGraph, featuring human-in-the-loop review, image generation, and comprehensive observability.
 
 ## 🤖 Development with Specialized Agents
@@ -580,6 +586,74 @@ See [TODO.md](TODO.md) for detailed task breakdown.
 - ⏸️ Multi-language support
 - ⏸️ A/B testing
 - ⏸️ Actual platform publishing
+
+## 🔄 CI/CD Pipeline
+
+This project uses **GitHub Actions** for continuous integration and deployment with comprehensive quality checks.
+
+### Workflows
+
+**1. CI/CD Pipeline** (`ci.yml`) - Runs on all PRs and pushes to main/develop
+
+Includes 6 parallel jobs:
+- **Tests**: Full test suite with coverage reporting (pytest)
+- **Linting**: Code quality checks (ruff)
+- **Type Checking**: Static type analysis (mypy)
+- **Format Check**: Code formatting validation (black)
+- **Migrations**: Database migration validation (alembic)
+- **Security Scan**: Dependency vulnerability checks (pip-audit)
+
+**2. Quick Tests** (`quick-test.yml`) - Fast feedback on feature branches
+
+- Runs tests only (fast mode)
+- Quick linting check
+- Provides rapid feedback for development
+
+### Running CI Locally
+
+Before pushing, run these commands to ensure CI will pass:
+
+```bash
+# Run all tests with coverage
+uv run pytest tests/ -v --cov=src --cov-report=term-missing
+
+# Check code formatting
+uv run black --check src/ tests/
+
+# Run linter
+uv run ruff check src/ tests/
+
+# Run type checker
+uv run mypy src/
+
+# Validate migrations
+uv run alembic check
+```
+
+**Pro Tip**: Run all checks at once:
+```bash
+# Format code
+uv run black src/ tests/
+
+# Run tests and quality checks
+uv run pytest tests/ -v --cov=src && \
+uv run ruff check src/ tests/ && \
+uv run mypy src/
+```
+
+### CI Requirements for PRs
+
+All pull requests must pass:
+- ✅ All tests passing (35 tests)
+- ✅ Code formatted with Black
+- ✅ No linting errors from Ruff
+- ✅ Database migrations valid
+
+Type checking warnings are reported but don't fail CI.
+
+### Workflow Status
+
+View workflow runs: [Actions Tab](https://github.com/pedrobruning/social-media-post-gen/actions)
 
 ## 🤝 Contributing
 

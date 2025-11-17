@@ -3,8 +3,6 @@
 This module coordinates running all evaluators and storing results.
 """
 
-from typing import Dict, List
-
 from sqlalchemy.orm import Session
 
 from src.db.repositories import EvaluationRepository, PostContentRepository, PostRepository
@@ -17,23 +15,23 @@ from src.evaluation.evaluators import (
 
 class EvaluationRunner:
     """Orchestrates evaluation of generated content.
-    
+
     Runs all evaluators and stores results in the database.
     """
-    
+
     def __init__(self):
         """Initialize evaluation runner with all evaluators."""
         self.quality_evaluator = QualityEvaluator()
         self.platform_evaluator = PlatformEvaluator()
         self.llm_judge_evaluator = LLMJudgeEvaluator()
-    
-    async def evaluate_post(self, post_id: int, db: Session) -> Dict[str, List[float]]:
+
+    async def evaluate_post(self, post_id: int, db: Session) -> dict[str, list[float]]:
         """Evaluate all content for a post.
-        
+
         Args:
             post_id: Post database ID
             db: Database session
-            
+
         Returns:
             Dict of evaluator types to list of scores
         """
@@ -41,20 +39,20 @@ class EvaluationRunner:
         post_repo = PostRepository(db)
         content_repo = PostContentRepository(db)
         eval_repo = EvaluationRepository(db)
-        
+
         # Get post and content
         post = post_repo.get_by_id(post_id)
         if not post:
             raise ValueError(f"Post {post_id} not found")
-        
+
         contents = content_repo.get_by_post_id(post_id)
-        
+
         results = {
             "quality": [],
             "platform": [],
             "llm_judge": [],
         }
-        
+
         # Evaluate each platform's content
         for content in contents:
             # Quality metrics
@@ -67,7 +65,7 @@ class EvaluationRunner:
                     evaluator_type="quality",
                 )
                 results["quality"].append(score)
-            
+
             # Platform-specific metrics
             platform_scores = self._evaluate_platform(content.platform, content.metadata)
             for metric_name, score in platform_scores.items():
@@ -78,19 +76,19 @@ class EvaluationRunner:
                     evaluator_type="platform",
                 )
                 results["platform"].append(score)
-            
+
             # LLM-as-judge metrics
             # TODO: Implement LLM judge evaluation
-        
+
         return results
-    
-    def _evaluate_platform(self, platform: str, content: dict) -> Dict[str, float]:
+
+    def _evaluate_platform(self, platform: str, content: dict) -> dict[str, float]:
         """Evaluate platform-specific requirements.
-        
+
         Args:
             platform: Platform name
             content: Content with metadata
-            
+
         Returns:
             Dict of metric names to scores
         """
@@ -102,4 +100,3 @@ class EvaluationRunner:
             return self.platform_evaluator.evaluate_wordpress(content)
         else:
             return {}
-

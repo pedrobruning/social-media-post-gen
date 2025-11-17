@@ -4,7 +4,7 @@ This module handles database connections, session creation, and
 provides utilities for database operations.
 """
 
-from typing import Generator
+from collections.abc import Generator
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
@@ -29,13 +29,13 @@ SessionLocal = sessionmaker(
 
 def get_db() -> Generator[Session, None, None]:
     """Get database session for dependency injection.
-    
+
     This is used as a FastAPI dependency to provide database sessions
     to route handlers. The session is automatically closed after use.
-    
+
     Yields:
         Database session
-        
+
     Example:
         @app.get("/posts")
         def get_posts(db: Session = Depends(get_db)):
@@ -50,7 +50,7 @@ def get_db() -> Generator[Session, None, None]:
 
 def init_db() -> None:
     """Initialize database tables.
-    
+
     Creates all tables defined in models.py if they don't exist.
     Note: This is for development only. Use Alembic migrations in production.
     """
@@ -59,8 +59,7 @@ def init_db() -> None:
 
 def drop_db() -> None:
     """Drop all database tables.
-    
+
     WARNING: This deletes all data! Only use for testing.
     """
     Base.metadata.drop_all(bind=engine)
-
