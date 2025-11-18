@@ -4,13 +4,19 @@ This module tests the workflow control nodes (wait_for_approval, apply_feedback,
 finalize, handle_error) and content generation nodes following TDD principles.
 """
 
-import json
 from unittest.mock import MagicMock, patch
 
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
+from src.agent.llm_schemas import (
+    InstagramContentOutput,
+    LinkedInContentOutput,
+    TopicAnalysisOutput,
+    WordPressContentOutput,
+    WordPressSectionOutput,
+)
 from src.agent.nodes import (
     analyze_topic,
     apply_feedback,
@@ -285,25 +291,25 @@ class TestAnalyzeTopic:
 
     @patch("src.agent.nodes.LLMRouter")
     def test_analyze_topic_success(self, mock_router_class):
-        """Test successful topic analysis."""
-        # Mock LLM response
-        mock_analysis = {
-            "themes": ["AI", "Machine Learning", "Innovation"],
-            "audience": "Tech professionals and business leaders",
-            "visual_concepts": [
+        """Test successful topic analysis with Pydantic structured output."""
+        # Mock LLM response as Pydantic model
+        mock_analysis = TopicAnalysisOutput(
+            themes=["AI", "Machine Learning", "Innovation"],
+            audience="Tech professionals and business leaders",
+            visual_concepts=[
                 "Futuristic AI brain",
                 "Connected network nodes",
                 "Digital transformation",
             ],
-            "tone": "professional",
-            "takeaways": [
+            tone="professional",
+            takeaways=[
                 "AI is transforming business",
                 "Practical applications exist today",
             ],
-        }
+        )
 
         mock_router = MagicMock()
-        mock_router.generate.return_value = json.dumps(mock_analysis)
+        mock_router.generate_structured.return_value = mock_analysis
         mock_router_class.return_value = mock_router
 
         # Create initial state
@@ -312,10 +318,11 @@ class TestAnalyzeTopic:
         # Call node
         result = analyze_topic(state)
 
-        # Verify LLM was called
-        mock_router.generate.assert_called_once()
-        call_args = mock_router.generate.call_args
-        assert "The future of AI in business" in call_args[0][0]  # Check prompt contains topic
+        # Verify LLM was called with generate_structured
+        mock_router.generate_structured.assert_called_once()
+        call_args = mock_router.generate_structured.call_args
+        assert call_args[1]["response_model"] == TopicAnalysisOutput
+        assert "The future of AI in business" in call_args[1]["prompt"]
 
         # Verify result
         assert "analysis" in result
@@ -330,16 +337,16 @@ class TestAnalyzeTopic:
     @patch("src.agent.nodes.LLMRouter")
     def test_analyze_topic_extracts_all_fields(self, mock_router_class):
         """Test that all required fields are extracted."""
-        mock_analysis = {
-            "themes": ["Topic A", "Topic B"],
-            "audience": "General audience",
-            "visual_concepts": ["Concept 1"],
-            "tone": "casual",
-            "takeaways": ["Key point"],
-        }
+        mock_analysis = TopicAnalysisOutput(
+            themes=["Topic A", "Topic B", "Topic C"],
+            audience="General audience",
+            visual_concepts=["Concept 1", "Concept 2", "Concept 3"],
+            tone="casual",
+            takeaways=["Key point", "Another point"],
+        )
 
         mock_router = MagicMock()
-        mock_router.generate.return_value = json.dumps(mock_analysis)
+        mock_router.generate_structured.return_value = mock_analysis
         mock_router_class.return_value = mock_router
 
         state = PostGenerationState(topic="Test topic", post_id=1)
@@ -358,13 +365,13 @@ class TestGenerateLinkedIn:
     @patch("src.agent.nodes.LLMRouter")
     def test_generate_linkedin_success(self, mock_router_class):
         """Test successful LinkedIn post generation."""
-        mock_content = {
-            "text": "AI is transforming the way we work. Here are 3 key insights...",
-            "hashtags": ["AI", "Innovation", "Business"],
-        }
+        mock_content = LinkedInContentOutput(
+            text="AI is transforming the way we work. Here are 3 key insights...",
+            hashtags=["AI", "Innovation", "Business"],
+        )
 
         mock_router = MagicMock()
-        mock_router.generate.return_value = json.dumps(mock_content)
+        mock_router.generate_structured.return_value = mock_content
         mock_router_class.return_value = mock_router
 
         # Create state with image
@@ -382,6 +389,9 @@ class TestGenerateLinkedIn:
         )
 
         result = generate_linkedin(state)
+
+        # Verify LLM was called with generate_structured
+        mock_router.generate_structured.assert_called_once()
 
         # Verify result structure
         assert "linkedin_post" in result
@@ -401,10 +411,10 @@ class TestGenerateLinkedIn:
         """Test LinkedIn post respects 3000 character limit."""
         # Create a post that's exactly at the limit
         long_text = "A" * 3000
-        mock_content = {"text": long_text, "hashtags": ["AI"]}
+        mock_content = LinkedInContentOutput(text=long_text, hashtags=["AI", "Tech"])
 
         mock_router = MagicMock()
-        mock_router.generate.return_value = json.dumps(mock_content)
+        mock_router.generate_structured.return_value = mock_content
         mock_router_class.return_value = mock_router
 
         state = PostGenerationState(
@@ -416,6 +426,9 @@ class TestGenerateLinkedIn:
         )
 
         result = generate_linkedin(state)
+
+        # Verify LLM was called with generate_structured
+        mock_router.generate_structured.assert_called_once()
 
         # Should validate successfully at 3000 chars
         linkedin_post = LinkedInPost(**result["linkedin_post"])
@@ -424,13 +437,13 @@ class TestGenerateLinkedIn:
     @patch("src.agent.nodes.LLMRouter")
     def test_generate_linkedin_hashtag_limit(self, mock_router_class):
         """Test LinkedIn post respects max 5 hashtags."""
-        mock_content = {
-            "text": "Test post",
-            "hashtags": ["AI", "ML", "Tech"],  # Only 3 hashtags
-        }
+        mock_content = LinkedInContentOutput(
+            text="Test post",
+            hashtags=["AI", "ML", "Tech"],  # Only 3 hashtags
+        )
 
         mock_router = MagicMock()
-        mock_router.generate.return_value = json.dumps(mock_content)
+        mock_router.generate_structured.return_value = mock_content
         mock_router_class.return_value = mock_router
 
         state = PostGenerationState(
@@ -443,6 +456,9 @@ class TestGenerateLinkedIn:
 
         result = generate_linkedin(state)
 
+        # Verify LLM was called with generate_structured
+        mock_router.generate_structured.assert_called_once()
+
         # Validate with Pydantic
         linkedin_post = LinkedInPost(**result["linkedin_post"])
         assert len(linkedin_post.hashtags) <= 5
@@ -450,10 +466,10 @@ class TestGenerateLinkedIn:
     @patch("src.agent.nodes.LLMRouter")
     def test_generate_linkedin_includes_image(self, mock_router_class):
         """Test LinkedIn post includes image reference."""
-        mock_content = {"text": "Test post with image", "hashtags": ["AI"]}
+        mock_content = LinkedInContentOutput(text="Test post with image", hashtags=["AI", "Tech"])
 
         mock_router = MagicMock()
-        mock_router.generate.return_value = json.dumps(mock_content)
+        mock_router.generate_structured.return_value = mock_content
         mock_router_class.return_value = mock_router
 
         image = ImageData(url="https://example.com/ai.png", prompt="AI illustration")
@@ -467,6 +483,9 @@ class TestGenerateLinkedIn:
 
         result = generate_linkedin(state)
 
+        # Verify LLM was called with generate_structured
+        mock_router.generate_structured.assert_called_once()
+
         # Image should be included in post
         assert result["linkedin_post"]["image"] is not None
         assert result["linkedin_post"]["image"]["url"] == image.url
@@ -478,9 +497,9 @@ class TestGenerateInstagram:
     @patch("src.agent.nodes.LLMRouter")
     def test_generate_instagram_success(self, mock_router_class):
         """Test successful Instagram post generation."""
-        mock_content = {
-            "caption": "Transform your business with AI! 🚀 Check out these insights...",
-            "hashtags": [
+        mock_content = InstagramContentOutput(
+            caption="Transform your business with AI! 🚀 Check out these insights...",
+            hashtags=[
                 "AI",
                 "MachineLearning",
                 "Tech",
@@ -492,10 +511,10 @@ class TestGenerateInstagram:
                 "Automation",
                 "Data",
             ],
-        }
+        )
 
         mock_router = MagicMock()
-        mock_router.generate.return_value = json.dumps(mock_content)
+        mock_router.generate_structured.return_value = mock_content
         mock_router_class.return_value = mock_router
 
         image = ImageData(url="https://example.com/image.png", prompt="AI brain")
@@ -508,6 +527,9 @@ class TestGenerateInstagram:
         )
 
         result = generate_instagram(state)
+
+        # Verify LLM was called with generate_structured
+        mock_router.generate_structured.assert_called_once()
 
         # Verify result
         assert "instagram_post" in result
@@ -524,13 +546,13 @@ class TestGenerateInstagram:
     def test_generate_instagram_character_limit(self, mock_router_class):
         """Test Instagram caption respects 2200 character limit."""
         caption = "A" * 2200
-        mock_content = {
-            "caption": caption,
-            "hashtags": ["AI"] * 15,  # 15 hashtags
-        }
+        mock_content = InstagramContentOutput(
+            caption=caption,
+            hashtags=["AI"] * 15,  # 15 hashtags
+        )
 
         mock_router = MagicMock()
-        mock_router.generate.return_value = json.dumps(mock_content)
+        mock_router.generate_structured.return_value = mock_content
         mock_router_class.return_value = mock_router
 
         image = ImageData(url="test.png", prompt="test")
@@ -543,6 +565,9 @@ class TestGenerateInstagram:
         )
 
         result = generate_instagram(state)
+
+        # Verify LLM was called with generate_structured
+        mock_router.generate_structured.assert_called_once()
 
         # Should validate successfully
         instagram_post = InstagramPost(**result["instagram_post"])
@@ -552,10 +577,10 @@ class TestGenerateInstagram:
     def test_generate_instagram_hashtag_count(self, mock_router_class):
         """Test Instagram post has 10-30 hashtags."""
         hashtags = [f"Tag{i}" for i in range(20)]  # 20 hashtags
-        mock_content = {"caption": "Test caption", "hashtags": hashtags}
+        mock_content = InstagramContentOutput(caption="Test caption", hashtags=hashtags)
 
         mock_router = MagicMock()
-        mock_router.generate.return_value = json.dumps(mock_content)
+        mock_router.generate_structured.return_value = mock_content
         mock_router_class.return_value = mock_router
 
         image = ImageData(url="test.png", prompt="test")
@@ -569,6 +594,9 @@ class TestGenerateInstagram:
 
         result = generate_instagram(state)
 
+        # Verify LLM was called with generate_structured
+        mock_router.generate_structured.assert_called_once()
+
         # Validate with Pydantic
         instagram_post = InstagramPost(**result["instagram_post"])
         assert 10 <= len(instagram_post.hashtags) <= 30
@@ -576,13 +604,13 @@ class TestGenerateInstagram:
     @patch("src.agent.nodes.LLMRouter")
     def test_generate_instagram_requires_image(self, mock_router_class):
         """Test Instagram post requires an image."""
-        mock_content = {
-            "caption": "Test caption",
-            "hashtags": [f"Tag{i}" for i in range(15)],
-        }
+        mock_content = InstagramContentOutput(
+            caption="Test caption",
+            hashtags=[f"Tag{i}" for i in range(15)],
+        )
 
         mock_router = MagicMock()
-        mock_router.generate.return_value = json.dumps(mock_content)
+        mock_router.generate_structured.return_value = mock_content
         mock_router_class.return_value = mock_router
 
         image = ImageData(url="https://example.com/image.png", prompt="Test image")
@@ -596,6 +624,9 @@ class TestGenerateInstagram:
 
         result = generate_instagram(state)
 
+        # Verify LLM was called with generate_structured
+        mock_router.generate_structured.assert_called_once()
+
         # Image is required for Instagram
         instagram_post = InstagramPost(**result["instagram_post"])
         assert instagram_post.image is not None
@@ -608,22 +639,22 @@ class TestGenerateWordPress:
     @patch("src.agent.nodes.LLMRouter")
     def test_generate_wordpress_success(self, mock_router_class):
         """Test successful WordPress article generation."""
-        mock_content = {
-            "title": "The Future of AI in Business: A Comprehensive Guide",
-            "excerpt": "Discover how AI is transforming business operations.",
-            "seo_description": "Discover how AI is transforming modern business operations and what it means for your company.",
-            "sections": [
-                {"type": "paragraph", "content": "Introduction paragraph..."},
-                {"type": "heading", "content": "What is AI?", "level": 2},
-                {"type": "paragraph", "content": "AI explanation..."},
-                {"type": "image", "content": "image_reference"},
-                {"type": "heading", "content": "Benefits of AI", "level": 2},
-                {"type": "paragraph", "content": "Benefits discussion..."},
+        mock_content = WordPressContentOutput(
+            title="AI in Business: A Complete Guide for Modern Leaders",
+            excerpt="Discover how AI is transforming business operations.",
+            seo_description="Discover how artificial intelligence is transforming modern business operations and learn what it means for your company's future success today and beyond.",
+            sections=[
+                WordPressSectionOutput(type="paragraph", content="Introduction paragraph..."),
+                WordPressSectionOutput(type="heading", content="What is AI?", level=2),
+                WordPressSectionOutput(type="paragraph", content="AI explanation..."),
+                WordPressSectionOutput(type="image", content="image_reference"),
+                WordPressSectionOutput(type="heading", content="Benefits of AI", level=2),
+                WordPressSectionOutput(type="paragraph", content="Benefits discussion..."),
             ],
-        }
+        )
 
         mock_router = MagicMock()
-        mock_router.generate.return_value = json.dumps(mock_content)
+        mock_router.generate_structured.return_value = mock_content
         mock_router_class.return_value = mock_router
 
         image = ImageData(url="https://example.com/ai.png", prompt="AI illustration")
@@ -636,6 +667,9 @@ class TestGenerateWordPress:
         )
 
         result = generate_wordpress(state)
+
+        # Verify LLM was called with generate_structured
+        mock_router.generate_structured.assert_called_once()
 
         # Verify result
         assert "wordpress_post" in result
@@ -652,21 +686,21 @@ class TestGenerateWordPress:
     @patch("src.agent.nodes.LLMRouter")
     def test_generate_wordpress_section_structure(self, mock_router_class):
         """Test WordPress sections have correct structure."""
-        mock_content = {
-            "title": "Test Article",
-            "excerpt": "Test excerpt",
-            "seo_description": "Test SEO description",
-            "sections": [
-                {"type": "heading", "content": "Introduction", "level": 2},
-                {"type": "paragraph", "content": "Intro text"},
-                {"type": "image", "content": "image_reference"},
-                {"type": "heading", "content": "Conclusion", "level": 2},
-                {"type": "paragraph", "content": "Conclusion text"},
+        mock_content = WordPressContentOutput(
+            title="Understanding Modern AI: A Complete Business Guide",
+            excerpt="Test excerpt",
+            seo_description="Learn about modern artificial intelligence and how it impacts business operations with practical insights and actionable strategies for your future success.",
+            sections=[
+                WordPressSectionOutput(type="heading", content="Introduction", level=2),
+                WordPressSectionOutput(type="paragraph", content="Intro text"),
+                WordPressSectionOutput(type="image", content="image_reference"),
+                WordPressSectionOutput(type="heading", content="Conclusion", level=2),
+                WordPressSectionOutput(type="paragraph", content="Conclusion text"),
             ],
-        }
+        )
 
         mock_router = MagicMock()
-        mock_router.generate.return_value = json.dumps(mock_content)
+        mock_router.generate_structured.return_value = mock_content
         mock_router_class.return_value = mock_router
 
         image = ImageData(url="test.png", prompt="test")
@@ -679,6 +713,9 @@ class TestGenerateWordPress:
         )
 
         result = generate_wordpress(state)
+
+        # Verify LLM was called with generate_structured
+        mock_router.generate_structured.assert_called_once()
 
         # Validate with Pydantic
         wordpress_post = WordPressPost(**result["wordpress_post"])
@@ -692,15 +729,21 @@ class TestGenerateWordPress:
     @patch("src.agent.nodes.LLMRouter")
     def test_generate_wordpress_title_length(self, mock_router_class):
         """Test WordPress title respects max 200 characters."""
-        mock_content = {
-            "title": "Short Title",
-            "excerpt": "Test excerpt",
-            "seo_description": "SEO description under 160 chars",
-            "sections": [{"type": "paragraph", "content": "Content"}],
-        }
+        mock_content = WordPressContentOutput(
+            title="Testing WordPress Article Title Length Constraints Here",
+            excerpt="Test excerpt",
+            seo_description="This is a longer SEO description that meets the minimum character requirement of 150 characters for proper search engine optimization and full validation.",
+            sections=[
+                WordPressSectionOutput(type="heading", content="Introduction", level=2),
+                WordPressSectionOutput(type="paragraph", content="Content paragraph 1"),
+                WordPressSectionOutput(type="paragraph", content="Content paragraph 2"),
+                WordPressSectionOutput(type="heading", content="Conclusion", level=2),
+                WordPressSectionOutput(type="paragraph", content="Content paragraph 3"),
+            ],
+        )
 
         mock_router = MagicMock()
-        mock_router.generate.return_value = json.dumps(mock_content)
+        mock_router.generate_structured.return_value = mock_content
         mock_router_class.return_value = mock_router
 
         image = ImageData(url="test.png", prompt="test")
@@ -713,6 +756,9 @@ class TestGenerateWordPress:
         )
 
         result = generate_wordpress(state)
+
+        # Verify LLM was called with generate_structured
+        mock_router.generate_structured.assert_called_once()
 
         wordpress_post = WordPressPost(**result["wordpress_post"])
         assert len(wordpress_post.title) <= 200
@@ -720,15 +766,21 @@ class TestGenerateWordPress:
     @patch("src.agent.nodes.LLMRouter")
     def test_generate_wordpress_seo_description_length(self, mock_router_class):
         """Test WordPress SEO description respects max 160 characters."""
-        mock_content = {
-            "title": "Test Title",
-            "excerpt": "Test excerpt",
-            "seo_description": "A" * 160,  # Exactly 160 chars
-            "sections": [{"type": "paragraph", "content": "Content"}],
-        }
+        mock_content = WordPressContentOutput(
+            title="WordPress SEO Description Testing with Character Limit",
+            excerpt="Test excerpt",
+            seo_description="A" * 160,  # Exactly 160 chars
+            sections=[
+                WordPressSectionOutput(type="heading", content="Introduction", level=2),
+                WordPressSectionOutput(type="paragraph", content="Content paragraph 1"),
+                WordPressSectionOutput(type="paragraph", content="Content paragraph 2"),
+                WordPressSectionOutput(type="heading", content="Conclusion", level=2),
+                WordPressSectionOutput(type="paragraph", content="Content paragraph 3"),
+            ],
+        )
 
         mock_router = MagicMock()
-        mock_router.generate.return_value = json.dumps(mock_content)
+        mock_router.generate_structured.return_value = mock_content
         mock_router_class.return_value = mock_router
 
         image = ImageData(url="test.png", prompt="test")
@@ -742,25 +794,30 @@ class TestGenerateWordPress:
 
         result = generate_wordpress(state)
 
+        # Verify LLM was called with generate_structured
+        mock_router.generate_structured.assert_called_once()
+
         wordpress_post = WordPressPost(**result["wordpress_post"])
         assert len(wordpress_post.seo_description) <= 160
 
     @patch("src.agent.nodes.LLMRouter")
     def test_generate_wordpress_includes_image(self, mock_router_class):
         """Test WordPress article includes image in sections."""
-        mock_content = {
-            "title": "Test Article",
-            "excerpt": "Test excerpt",
-            "seo_description": "Test SEO",
-            "sections": [
-                {"type": "paragraph", "content": "Intro"},
-                {"type": "image", "content": "image_reference"},
-                {"type": "paragraph", "content": "Body"},
+        mock_content = WordPressContentOutput(
+            title="WordPress Article with Images: A Complete Testing Guide",
+            excerpt="Test excerpt",
+            seo_description="Learn how WordPress articles can include images in their sections with this complete guide covering all the essential aspects and best practices for success.",
+            sections=[
+                WordPressSectionOutput(type="paragraph", content="Intro"),
+                WordPressSectionOutput(type="image", content="image_reference"),
+                WordPressSectionOutput(type="paragraph", content="Body paragraph 1"),
+                WordPressSectionOutput(type="heading", content="Conclusion", level=2),
+                WordPressSectionOutput(type="paragraph", content="Body paragraph 2"),
             ],
-        }
+        )
 
         mock_router = MagicMock()
-        mock_router.generate.return_value = json.dumps(mock_content)
+        mock_router.generate_structured.return_value = mock_content
         mock_router_class.return_value = mock_router
 
         image = ImageData(
@@ -777,6 +834,9 @@ class TestGenerateWordPress:
         )
 
         result = generate_wordpress(state)
+
+        # Verify LLM was called with generate_structured
+        mock_router.generate_structured.assert_called_once()
 
         wordpress_post = WordPressPost(**result["wordpress_post"])
 
@@ -796,13 +856,13 @@ class TestPydanticValidation:
     @patch("src.agent.nodes.LLMRouter")
     def test_linkedin_pydantic_validation(self, mock_router_class):
         """Test LinkedIn content validates with Pydantic."""
-        mock_content = {
-            "text": "Valid LinkedIn post",
-            "hashtags": ["AI", "Tech"],
-        }
+        mock_content = LinkedInContentOutput(
+            text="Valid LinkedIn post",
+            hashtags=["AI", "Tech"],
+        )
 
         mock_router = MagicMock()
-        mock_router.generate.return_value = json.dumps(mock_content)
+        mock_router.generate_structured.return_value = mock_content
         mock_router_class.return_value = mock_router
 
         image = ImageData(url="test.png", prompt="test")
@@ -816,6 +876,9 @@ class TestPydanticValidation:
 
         result = generate_linkedin(state)
 
+        # Verify LLM was called with generate_structured
+        mock_router.generate_structured.assert_called_once()
+
         # Should not raise validation error
         linkedin_post = LinkedInPost(**result["linkedin_post"])
         assert linkedin_post.text == "Valid LinkedIn post"
@@ -823,13 +886,13 @@ class TestPydanticValidation:
     @patch("src.agent.nodes.LLMRouter")
     def test_instagram_pydantic_validation(self, mock_router_class):
         """Test Instagram content validates with Pydantic."""
-        mock_content = {
-            "caption": "Valid Instagram caption",
-            "hashtags": [f"Tag{i}" for i in range(15)],
-        }
+        mock_content = InstagramContentOutput(
+            caption="Valid Instagram caption",
+            hashtags=[f"Tag{i}" for i in range(15)],
+        )
 
         mock_router = MagicMock()
-        mock_router.generate.return_value = json.dumps(mock_content)
+        mock_router.generate_structured.return_value = mock_content
         mock_router_class.return_value = mock_router
 
         image = ImageData(url="test.png", prompt="test")
@@ -843,6 +906,9 @@ class TestPydanticValidation:
 
         result = generate_instagram(state)
 
+        # Verify LLM was called with generate_structured
+        mock_router.generate_structured.assert_called_once()
+
         # Should not raise validation error
         instagram_post = InstagramPost(**result["instagram_post"])
         assert instagram_post.caption == "Valid Instagram caption"
@@ -850,18 +916,21 @@ class TestPydanticValidation:
     @patch("src.agent.nodes.LLMRouter")
     def test_wordpress_pydantic_validation(self, mock_router_class):
         """Test WordPress content validates with Pydantic."""
-        mock_content = {
-            "title": "Valid WordPress Title",
-            "excerpt": "Valid excerpt",
-            "seo_description": "Valid SEO description",
-            "sections": [
-                {"type": "heading", "content": "Heading", "level": 2},
-                {"type": "paragraph", "content": "Paragraph"},
+        mock_content = WordPressContentOutput(
+            title="Valid WordPress Title: A Complete Pydantic Test Guide",
+            excerpt="Valid excerpt",
+            seo_description="This is a valid SEO description that meets the minimum character requirement of 150 characters for proper validation and search engine optimization success.",
+            sections=[
+                WordPressSectionOutput(type="heading", content="Introduction", level=2),
+                WordPressSectionOutput(type="paragraph", content="Paragraph 1"),
+                WordPressSectionOutput(type="paragraph", content="Paragraph 2"),
+                WordPressSectionOutput(type="heading", content="Conclusion", level=2),
+                WordPressSectionOutput(type="paragraph", content="Paragraph 3"),
             ],
-        }
+        )
 
         mock_router = MagicMock()
-        mock_router.generate.return_value = json.dumps(mock_content)
+        mock_router.generate_structured.return_value = mock_content
         mock_router_class.return_value = mock_router
 
         image = ImageData(url="test.png", prompt="test")
@@ -875,6 +944,9 @@ class TestPydanticValidation:
 
         result = generate_wordpress(state)
 
+        # Verify LLM was called with generate_structured
+        mock_router.generate_structured.assert_called_once()
+
         # Should not raise validation error
         wordpress_post = WordPressPost(**result["wordpress_post"])
-        assert wordpress_post.title == "Valid WordPress Title"
+        assert wordpress_post.title == "Valid WordPress Title: A Complete Pydantic Test Guide"

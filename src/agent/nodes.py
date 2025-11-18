@@ -4,9 +4,14 @@ This module defines all the nodes (functions) that make up the agent workflow.
 Each node performs a specific task in the content generation pipeline.
 """
 
-import json
 import logging
 
+from src.agent.llm_schemas import (
+    InstagramContentOutput,
+    LinkedInContentOutput,
+    TopicAnalysisOutput,
+    WordPressContentOutput,
+)
 from src.agent.schemas import (
     InstagramPost,
     LinkedInPost,
@@ -25,6 +30,8 @@ def analyze_topic(state: PostGenerationState) -> dict:
     This is the first node in the workflow. It analyzes the user's topic
     to understand what content needs to be generated.
 
+    Uses Pydantic structured output to ensure type safety and validation.
+
     Args:
         state: Current agent state
 
@@ -42,25 +49,24 @@ Provide:
 1. 3-5 key themes/concepts
 2. Target audience description
 3. 3 visual concepts for an image
-4. Content tone (professional/casual/inspirational)
-5. Key takeaways to communicate
+4. Content tone (professional/casual/inspirational/educational)
+5. Key takeaways to communicate (2-5 points)"""
 
-Return as JSON with keys: themes, audience, visual_concepts, tone, takeaways"""
-
-    # Call LLM
+    # Call LLM with Pydantic structured output
     llm_router = LLMRouter()
-    response = llm_router.generate(prompt, system_prompt)
+    analysis = llm_router.generate_structured(
+        prompt=prompt,
+        response_model=TopicAnalysisOutput,
+        system_prompt=system_prompt,
+    )
 
-    # Parse JSON response
-    analysis = json.loads(response)
-
-    logger.info(f"Extracted {len(analysis.get('themes', []))} themes for topic")
+    logger.info(f"Extracted {len(analysis.themes)} themes for topic")
 
     return {
-        "analysis": analysis,
-        "themes": analysis["themes"],
-        "target_audience": analysis["audience"],
-        "visual_concepts": analysis["visual_concepts"],
+        "analysis": analysis.model_dump(),
+        "themes": analysis.themes,
+        "target_audience": analysis.audience,
+        "visual_concepts": analysis.visual_concepts,
     }
 
 
@@ -88,6 +94,8 @@ def generate_linkedin(state: PostGenerationState) -> dict:
 
     Creates a professional post optimized for LinkedIn (max 3000 chars).
 
+    Uses Pydantic structured output to ensure validation and type safety.
+
     Args:
         state: Current agent state
 
@@ -113,22 +121,23 @@ Requirements:
 2. Provide valuable insights
 3. Maximum 3000 characters
 4. Professional tone
-5. Include 2-5 relevant hashtags at the end
+5. Include 2-5 relevant hashtags
 6. End with thought-provoking question or CTA
-7. Reference the attached image naturally
+7. Reference the attached image naturally"""
 
-Return JSON: {{"text": "...", "hashtags": ["...", "..."]}}"""
-
-    # Call LLM
+    # Call LLM with Pydantic structured output
     llm_router = LLMRouter()
-    response = llm_router.generate(prompt, system_prompt)
+    content = llm_router.generate_structured(
+        prompt=prompt,
+        response_model=LinkedInContentOutput,
+        system_prompt=system_prompt,
+    )
 
-    # Parse JSON response
-    content = json.loads(response)
-
-    # Validate with Pydantic
+    # Create final LinkedInPost model with image
     linkedin_post = LinkedInPost(
-        text=content["text"], hashtags=content["hashtags"], image=state.image
+        text=content.text,
+        hashtags=content.hashtags,
+        image=state.image,
     )
 
     logger.info(
@@ -143,6 +152,8 @@ def generate_instagram(state: PostGenerationState) -> dict:
     """Generate Instagram post content.
 
     Creates a visual-focused caption with hashtags.
+
+    Uses Pydantic structured output to ensure validation and type safety.
 
     Args:
         state: Current agent state
@@ -173,20 +184,21 @@ Requirements:
 4. Maximum 2200 characters
 5. Include 10-30 relevant hashtags
 6. Conversational, authentic tone
-7. End with engagement question
+7. End with engagement question"""
 
-Return JSON: {{"caption": "...", "hashtags": ["...", ...]}}"""
-
-    # Call LLM
+    # Call LLM with Pydantic structured output
     llm_router = LLMRouter()
-    response = llm_router.generate(prompt, system_prompt)
+    content = llm_router.generate_structured(
+        prompt=prompt,
+        response_model=InstagramContentOutput,
+        system_prompt=system_prompt,
+    )
 
-    # Parse JSON response
-    content = json.loads(response)
-
-    # Validate with Pydantic
+    # Create final InstagramPost model with image
     instagram_post = InstagramPost(
-        caption=content["caption"], hashtags=content["hashtags"], image=state.image
+        caption=content.caption,
+        hashtags=content.hashtags,
+        image=state.image,
     )
 
     logger.info(
@@ -201,6 +213,8 @@ def generate_wordpress(state: PostGenerationState) -> dict:
     """Generate WordPress article content.
 
     Creates a long-form article with proper structure and SEO.
+
+    Uses Pydantic structured output to ensure validation and type safety.
 
     Args:
         state: Current agent state
@@ -230,46 +244,47 @@ Requirements:
    - Introduction (2-3 paragraphs)
    - 3-5 main sections with H2 headings
    - Conclusion with CTA
-   - Place image after intro or in key section
+   - Place image after intro or in key section using "image_reference" as content
 5. 800-1500 words total
 6. Professional, informative tone
-7. Include examples where relevant
+7. Include examples where relevant"""
 
-Return JSON:
-{{
-  "title": "...",
-  "excerpt": "...",
-  "seo_description": "...",
-  "sections": [
-    {{"type": "heading", "content": "...", "level": 2}},
-    {{"type": "paragraph", "content": "..."}},
-    {{"type": "image", "content": "image_reference"}},
-    ...
-  ]
-}}"""
-
-    # Call LLM
+    # Call LLM with Pydantic structured output
     llm_router = LLMRouter()
-    response = llm_router.generate(prompt, system_prompt)
+    content = llm_router.generate_structured(
+        prompt=prompt,
+        response_model=WordPressContentOutput,
+        system_prompt=system_prompt,
+    )
 
-    # Parse JSON response
-    content = json.loads(response)
-
-    # Build sections with proper types
+    # Build sections with proper types, replacing image_reference with actual ImageData
     sections = []
-    for section in content["sections"]:
-        if section["type"] == "image":
-            # Replace image_reference with actual ImageData
-            section["content"] = state.image
-        sections.append(WordPressSection(**section))
+    for section in content.sections:
+        if section.type == "image":
+            # Replace image_reference string with actual ImageData object
+            sections.append(
+                WordPressSection(
+                    type=section.type,
+                    content=state.image,
+                    level=section.level,
+                )
+            )
+        else:
+            sections.append(
+                WordPressSection(
+                    type=section.type,
+                    content=section.content,
+                    level=section.level,
+                )
+            )
 
-    # Validate with Pydantic
+    # Create final WordPressPost model
     wordpress_post = WordPressPost(
-        title=content["title"],
-        excerpt=content.get("excerpt", ""),
+        title=content.title,
+        excerpt=content.excerpt,
         sections=sections,
         featured_image=state.image,
-        seo_description=content["seo_description"],
+        seo_description=content.seo_description,
     )
 
     logger.info(
