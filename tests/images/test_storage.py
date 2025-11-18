@@ -45,7 +45,7 @@ def sample_image(temp_storage):
         str: Path to the created test image
     """
     # Create a simple 100x100 red image
-    img = Image.new('RGB', (100, 100), color='red')
+    img = Image.new("RGB", (100, 100), color="red")
     image_path = Path(temp_storage) / "test_image.png"
     img.save(image_path)
     return str(image_path)
@@ -63,7 +63,7 @@ class TestImageStorage:
         storage_path = Path(temp_storage) / "new_storage"
         assert not storage_path.exists()
 
-        storage = ImageStorage(str(storage_path))
+        _ = ImageStorage(str(storage_path))
 
         assert storage_path.exists()
         assert storage_path.is_dir()
@@ -97,7 +97,7 @@ class TestImageStorage:
         first_save = storage.save_image(sample_image, post_id)
 
         # Create a different image (blue instead of red)
-        img = Image.new('RGB', (100, 100), color='blue')
+        img = Image.new("RGB", (100, 100), color="blue")
         new_image_path = Path(temp_storage) / "new_test_image.png"
         img.save(new_image_path)
 

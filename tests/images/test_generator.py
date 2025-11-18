@@ -9,7 +9,7 @@ import base64
 import shutil
 import tempfile
 from pathlib import Path
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
 import pytest
 import requests
@@ -58,12 +58,13 @@ def sample_image_bytes():
         bytes: PNG image data
     """
     # Create a simple 10x10 blue image
-    img = Image.new('RGB', (10, 10), color='blue')
+    img = Image.new("RGB", (10, 10), color="blue")
 
     # Save to bytes
     import io
+
     buffer = io.BytesIO()
-    img.save(buffer, format='PNG')
+    img.save(buffer, format="PNG")
     return buffer.getvalue()
 
 
@@ -160,11 +161,15 @@ class TestImageGenerator:
             # Setup mock response with Gemini format
             mock_response = Mock()
             mock_response.json.return_value = {
-                "choices": [{
-                    "message": {
-                        "images": ["data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="]
+                "choices": [
+                    {
+                        "message": {
+                            "images": [
+                                "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
+                            ]
+                        }
                     }
-                }]
+                ]
             }
             mock_response.raise_for_status = Mock()
             mock_post.return_value = mock_response
@@ -207,9 +212,7 @@ class TestImageGenerator:
         with patch("src.images.generator.requests.post") as mock_post:
             # Setup mock response with DALL-E format
             mock_response = Mock()
-            mock_response.json.return_value = {
-                "data": [{"url": "https://example.com/image.png"}]
-            }
+            mock_response.json.return_value = {"data": [{"url": "https://example.com/image.png"}]}
             mock_response.raise_for_status = Mock()
             mock_post.return_value = mock_response
 
@@ -276,8 +279,8 @@ class TestImageGenerator:
             # Simulate API error
             mock_post.side_effect = requests.exceptions.RequestException("API Error")
 
-            # Should raise an exception
-            with pytest.raises(Exception):
+            # Should raise an exception with specific message
+            with pytest.raises(Exception, match="Failed to generate image"):
                 generator._call_dalle_api("test prompt")
 
     def test_download_image_success(self, mock_settings, sample_image_bytes):
@@ -322,8 +325,8 @@ class TestImageGenerator:
             # Simulate network error
             mock_get.side_effect = requests.exceptions.RequestException("Download failed")
 
-            # Should raise an exception
-            with pytest.raises(Exception):
+            # Should raise an exception with specific message
+            with pytest.raises(Exception, match="Image download failed"):
                 generator._download_image("https://example.com/image.png", 1)
 
     def test_generate_image_full_workflow(self, mock_settings, sample_image_bytes):
@@ -342,12 +345,14 @@ class TestImageGenerator:
         post_id = 100
 
         # Create base64 encoded test image
-        base64_image = base64.b64encode(sample_image_bytes).decode('utf-8')
+        base64_image = base64.b64encode(sample_image_bytes).decode("utf-8")
         data_url = f"data:image/png;base64,{base64_image}"
 
         # Mock all external calls
-        with patch("src.images.generator.LLMRouter") as mock_router_class, \
-             patch("src.images.generator.requests.post") as mock_post:
+        with (
+            patch("src.images.generator.LLMRouter") as mock_router_class,
+            patch("src.images.generator.requests.post") as mock_post,
+        ):
 
             # Mock LLM prompt generation
             mock_router = Mock()
@@ -357,11 +362,7 @@ class TestImageGenerator:
             # Mock Gemini API call (default model is Gemini)
             mock_gemini_response = Mock()
             mock_gemini_response.json.return_value = {
-                "choices": [{
-                    "message": {
-                        "images": [data_url]
-                    }
-                }]
+                "choices": [{"message": {"images": [data_url]}}]
             }
             mock_gemini_response.raise_for_status = Mock()
             mock_post.return_value = mock_gemini_response
@@ -386,11 +387,13 @@ class TestImageGenerator:
         generator = ImageGenerator()
 
         # Create base64 encoded test image
-        base64_image = base64.b64encode(sample_image_bytes).decode('utf-8')
+        base64_image = base64.b64encode(sample_image_bytes).decode("utf-8")
         data_url = f"data:image/png;base64,{base64_image}"
 
-        with patch("src.images.generator.LLMRouter") as mock_router_class, \
-             patch("src.images.generator.requests.post") as mock_post:
+        with (
+            patch("src.images.generator.LLMRouter") as mock_router_class,
+            patch("src.images.generator.requests.post") as mock_post,
+        ):
 
             # Setup mocks
             mock_router = Mock()
@@ -399,11 +402,7 @@ class TestImageGenerator:
 
             mock_gemini_response = Mock()
             mock_gemini_response.json.return_value = {
-                "choices": [{
-                    "message": {
-                        "images": [data_url]
-                    }
-                }]
+                "choices": [{"message": {"images": [data_url]}}]
             }
             mock_gemini_response.raise_for_status = Mock()
             mock_post.return_value = mock_gemini_response
@@ -426,7 +425,7 @@ class TestImageGenerator:
 
         # Create a test image
         test_path = generator.storage_path / f"post_{post_id}.png"
-        img = Image.new('RGB', (10, 10), color='green')
+        img = Image.new("RGB", (10, 10), color="green")
         img.save(test_path)
 
         # Should find it

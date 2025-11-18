@@ -163,14 +163,12 @@ class ImageGenerator:
         Create a detailed image generation prompt for this topic:"""
 
         # Use LLM router to generate the prompt
-        router = LLMRouter(
-            temperature=0.7  # Some creativity, but not too wild
-        )
+        router = LLMRouter(temperature=0.7)  # Some creativity, but not too wild
 
         optimized_prompt = router.generate(
             prompt=user_prompt,
             system_prompt=system_prompt,
-            max_tokens=150  # Prompts should be concise
+            max_tokens=150,  # Prompts should be concise
         )
 
         logger.info(f"Generated DALL-E prompt: {optimized_prompt}")
@@ -219,16 +217,9 @@ class ImageGenerator:
         # Gemini uses chat format with special modalities parameter
         body = {
             "model": model,
-            "messages": [
-                {
-                    "role": "user",
-                    "content": prompt
-                }
-            ],
+            "messages": [{"role": "user", "content": prompt}],
             "modalities": ["image", "text"],  # Request both image and text output
-            "image_config": {
-                "aspect_ratio": aspect_ratio
-            }
+            "image_config": {"aspect_ratio": aspect_ratio},
         }
 
         logger.info(f"Calling Gemini API with model={model}, aspect_ratio={aspect_ratio}")
@@ -255,7 +246,7 @@ class ImageGenerator:
             # Get the first (and only) image
             image_data_url = assistant_message["images"][0]
 
-            logger.info(f"Successfully generated image (base64 data URL)")
+            logger.info("Successfully generated image (base64 data URL)")
             return image_data_url
 
         except requests.exceptions.RequestException as e:
@@ -301,7 +292,7 @@ class ImageGenerator:
         # Prepare headers with API key
         headers = {
             "Authorization": f"Bearer {settings.openrouter_api_key}",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
         }
 
         # Prepare request body
@@ -368,11 +359,10 @@ class ImageGenerator:
 
             # Use ImageStorage to save to final location
             from src.images.storage import ImageStorage
+
             storage = ImageStorage()
             final_path = storage.save_image(
-                source_path=temp_path,
-                post_id=post_id,
-                format=settings.image_format
+                source_path=temp_path, post_id=post_id, format=settings.image_format
             )
 
             # Clean up temporary file
@@ -431,11 +421,10 @@ class ImageGenerator:
 
             # Use ImageStorage to save to final location
             from src.images.storage import ImageStorage
+
             storage = ImageStorage()
             final_path = storage.save_image(
-                source_path=temp_path,
-                post_id=post_id,
-                format=settings.image_format
+                source_path=temp_path, post_id=post_id, format=settings.image_format
             )
 
             # Clean up temporary file
