@@ -4,7 +4,19 @@ This module defines all the nodes (functions) that make up the agent workflow.
 Each node performs a specific task in the content generation pipeline.
 """
 
+import json
+import logging
+
+from src.agent.schemas import (
+    InstagramPost,
+    LinkedInPost,
+    WordPressPost,
+    WordPressSection,
+)
 from src.agent.state import PostGenerationState
+from src.llm.router import LLMRouter
+
+logger = logging.getLogger(__name__)
 
 
 def analyze_topic(state: PostGenerationState) -> dict:
@@ -19,12 +31,37 @@ def analyze_topic(state: PostGenerationState) -> dict:
     Returns:
         Dict with updated state fields
     """
-    # TODO: Implement topic analysis using LLM
-    # 1. Extract key themes
-    # 2. Identify target audience
-    # 3. Determine visual concepts for image
-    # 4. Store analysis in state
-    pass
+    logger.info(f"Analyzing topic: {state.topic}")
+
+    system_prompt = """You are a content strategist analyzing topics for social media.
+Extract key information to guide content generation."""
+
+    prompt = f"""Analyze this topic: "{state.topic}"
+
+Provide:
+1. 3-5 key themes/concepts
+2. Target audience description
+3. 3 visual concepts for an image
+4. Content tone (professional/casual/inspirational)
+5. Key takeaways to communicate
+
+Return as JSON with keys: themes, audience, visual_concepts, tone, takeaways"""
+
+    # Call LLM
+    llm_router = LLMRouter()
+    response = llm_router.generate(prompt, system_prompt)
+
+    # Parse JSON response
+    analysis = json.loads(response)
+
+    logger.info(f"Extracted {len(analysis.get('themes', []))} themes for topic")
+
+    return {
+        "analysis": analysis,
+        "themes": analysis["themes"],
+        "target_audience": analysis["audience"],
+        "visual_concepts": analysis["visual_concepts"],
+    }
 
 
 def generate_image(state: PostGenerationState) -> dict:
@@ -57,12 +94,49 @@ def generate_linkedin(state: PostGenerationState) -> dict:
     Returns:
         Dict with linkedin_post field
     """
-    # TODO: Implement LinkedIn post generation
-    # 1. Use LLM to generate professional post
-    # 2. Include reference to image
-    # 3. Optimize for LinkedIn engagement
-    # 4. Store in state as dict with text, metadata
-    pass
+    logger.info(f"Generating LinkedIn post for topic: {state.topic}")
+
+    system_prompt = "You are a LinkedIn content expert creating professional posts."
+
+    # Get image description if available
+    image_desc = state.image.prompt if state.image else "N/A"
+
+    prompt = f"""Create a LinkedIn post about: {state.topic}
+
+Context:
+- Themes: {', '.join(state.themes) if state.themes else 'N/A'}
+- Audience: {state.target_audience or 'General professionals'}
+- Image: {image_desc}
+
+Requirements:
+1. Start with attention-grabbing hook (first 2 lines)
+2. Provide valuable insights
+3. Maximum 3000 characters
+4. Professional tone
+5. Include 2-5 relevant hashtags at the end
+6. End with thought-provoking question or CTA
+7. Reference the attached image naturally
+
+Return JSON: {{"text": "...", "hashtags": ["...", "..."]}}"""
+
+    # Call LLM
+    llm_router = LLMRouter()
+    response = llm_router.generate(prompt, system_prompt)
+
+    # Parse JSON response
+    content = json.loads(response)
+
+    # Validate with Pydantic
+    linkedin_post = LinkedInPost(
+        text=content["text"], hashtags=content["hashtags"], image=state.image
+    )
+
+    logger.info(
+        f"Generated LinkedIn post: {linkedin_post.character_count} chars, "
+        f"{len(linkedin_post.hashtags)} hashtags"
+    )
+
+    return {"linkedin_post": linkedin_post.model_dump()}
 
 
 def generate_instagram(state: PostGenerationState) -> dict:
@@ -76,12 +150,51 @@ def generate_instagram(state: PostGenerationState) -> dict:
     Returns:
         Dict with instagram_post field
     """
-    # TODO: Implement Instagram post generation
-    # 1. Use LLM to generate engaging caption
-    # 2. Generate 10-30 relevant hashtags
-    # 3. Optimize for visual storytelling
-    # 4. Store in state as dict with caption, hashtags
-    pass
+    logger.info(f"Generating Instagram post for topic: {state.topic}")
+
+    system_prompt = (
+        "You are an Instagram content creator. Create engaging, visual-focused captions."
+    )
+
+    # Get image description
+    image_desc = state.image.prompt if state.image else "N/A"
+
+    prompt = f"""Create an Instagram caption about: {state.topic}
+
+Context:
+- Themes: {', '.join(state.themes) if state.themes else 'N/A'}
+- Audience: {state.target_audience or 'General audience'}
+- Image shows: {image_desc}
+
+Requirements:
+1. Start with attention-grabbing first line
+2. Tell a story that connects to the image
+3. Use 2-3 relevant emojis naturally
+4. Maximum 2200 characters
+5. Include 10-30 relevant hashtags
+6. Conversational, authentic tone
+7. End with engagement question
+
+Return JSON: {{"caption": "...", "hashtags": ["...", ...]}}"""
+
+    # Call LLM
+    llm_router = LLMRouter()
+    response = llm_router.generate(prompt, system_prompt)
+
+    # Parse JSON response
+    content = json.loads(response)
+
+    # Validate with Pydantic
+    instagram_post = InstagramPost(
+        caption=content["caption"], hashtags=content["hashtags"], image=state.image
+    )
+
+    logger.info(
+        f"Generated Instagram post: {len(instagram_post.caption)} chars, "
+        f"{len(instagram_post.hashtags)} hashtags"
+    )
+
+    return {"instagram_post": instagram_post.model_dump()}
 
 
 def generate_wordpress(state: PostGenerationState) -> dict:
@@ -95,12 +208,76 @@ def generate_wordpress(state: PostGenerationState) -> dict:
     Returns:
         Dict with wordpress_post field
     """
-    # TODO: Implement WordPress article generation
-    # 1. Use LLM to generate structured article
-    # 2. Include title, intro, body, conclusion
-    # 3. Optimize for SEO
-    # 4. Store in state as dict with title, body, metadata
-    pass
+    logger.info(f"Generating WordPress article for topic: {state.topic}")
+
+    system_prompt = "You are a WordPress content writer creating structured articles."
+
+    # Get image description
+    image_desc = state.image.prompt if state.image else "N/A"
+
+    prompt = f"""Create an article about: {state.topic}
+
+Context:
+- Themes: {', '.join(state.themes) if state.themes else 'N/A'}
+- Audience: {state.target_audience or 'General readers'}
+- Available image: {image_desc}
+
+Requirements:
+1. Compelling title (50-60 chars)
+2. SEO meta description (150-160 chars)
+3. Brief excerpt (max 500 chars)
+4. Structure:
+   - Introduction (2-3 paragraphs)
+   - 3-5 main sections with H2 headings
+   - Conclusion with CTA
+   - Place image after intro or in key section
+5. 800-1500 words total
+6. Professional, informative tone
+7. Include examples where relevant
+
+Return JSON:
+{{
+  "title": "...",
+  "excerpt": "...",
+  "seo_description": "...",
+  "sections": [
+    {{"type": "heading", "content": "...", "level": 2}},
+    {{"type": "paragraph", "content": "..."}},
+    {{"type": "image", "content": "image_reference"}},
+    ...
+  ]
+}}"""
+
+    # Call LLM
+    llm_router = LLMRouter()
+    response = llm_router.generate(prompt, system_prompt)
+
+    # Parse JSON response
+    content = json.loads(response)
+
+    # Build sections with proper types
+    sections = []
+    for section in content["sections"]:
+        if section["type"] == "image":
+            # Replace image_reference with actual ImageData
+            section["content"] = state.image
+        sections.append(WordPressSection(**section))
+
+    # Validate with Pydantic
+    wordpress_post = WordPressPost(
+        title=content["title"],
+        excerpt=content.get("excerpt", ""),
+        sections=sections,
+        featured_image=state.image,
+        seo_description=content["seo_description"],
+    )
+
+    logger.info(
+        f"Generated WordPress article: {len(wordpress_post.sections)} sections, "
+        f"title: {wordpress_post.title[:50]}..."
+    )
+
+    return {"wordpress_post": wordpress_post.model_dump()}
 
 
 def wait_for_approval(state: PostGenerationState) -> dict:
@@ -134,11 +311,25 @@ def apply_feedback(state: PostGenerationState) -> dict:
     Returns:
         Dict with updated state for regeneration
     """
-    # TODO: Implement feedback application
-    # 1. Parse human feedback
-    # 2. Determine which platforms need regeneration
-    # 3. Update state to trigger regeneration
-    pass
+    logger.info(f"Applying feedback for post {state.post_id}: {state.feedback}")
+
+    # Determine which platforms need regeneration based on feedback
+    feedback_lower = (state.feedback or "").lower()
+
+    regenerate_flags = {
+        "regenerate_linkedin": "linkedin" in feedback_lower,
+        "regenerate_instagram": "instagram" in feedback_lower,
+        "regenerate_wordpress": "wordpress" in feedback_lower,
+    }
+
+    # If no specific platform mentioned, regenerate all
+    if not any(regenerate_flags.values()):
+        regenerate_flags = dict.fromkeys(regenerate_flags, True)
+
+    return {
+        **regenerate_flags,
+        "approval_status": "regenerating",
+    }
 
 
 def finalize(state: PostGenerationState) -> dict:
@@ -152,12 +343,14 @@ def finalize(state: PostGenerationState) -> dict:
     Returns:
         Dict with final status
     """
-    # TODO: Implement finalization logic
-    # 1. Save all content to database
-    # 2. Update post status to 'approved'
-    # 3. Trigger evaluation if enabled
+    logger.info(f"Finalizing post {state.post_id}")
+
+    # Note: Database saving is handled by the API layer, not here.
+    # This node just marks the workflow as complete.
+
     return {
         "approval_status": "approved",
+        "finalized": True,
     }
 
 
@@ -170,8 +363,9 @@ def handle_error(state: PostGenerationState) -> dict:
     Returns:
         Dict with error handling updates
     """
-    # TODO: Implement error handling
-    # 1. Log error
-    # 2. Determine if retry is possible
-    # 3. Update state appropriately
-    pass
+    logger.error(f"Error in post {state.post_id}: {state.error}")
+
+    return {
+        "approval_status": "error",
+        "finalized": False,
+    }
