@@ -36,8 +36,18 @@ class ImageStorage:
         Returns:
             Path to saved image
         """
-        # TODO: Implement image saving
-        pass
+        # Import shutil for file copying
+        import shutil
+
+        # Create destination path: storage/images/post_42.png
+        dest_path = self.storage_path / f"post_{post_id}.{format}"
+
+        # Copy the image file from source to destination
+        # This handles all the file I/O for us
+        shutil.copy2(source_path, dest_path)
+
+        # Return the absolute path as a string
+        return str(dest_path)
 
     def get_image(self, post_id: int) -> str | None:
         """Get image path for a post.

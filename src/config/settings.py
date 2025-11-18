@@ -108,20 +108,25 @@ class Settings(BaseSettings):
 
     # Image Generation Configuration
     image_model: str = Field(
-        default="dall-e-3",
-        description="DALL-E model: dall-e-3, dall-e-2",
+        default="google/gemini-2.5-flash-image-preview:free",
+        description="Image generation model: google/gemini-2.5-flash-image, google/gemini-2.5-flash-image-preview:free (free tier)",
     )
+    image_aspect_ratio: str = Field(
+        default="1:1",
+        description="Image aspect ratio for Gemini: 1:1 (square), 3:4 (portrait), 4:3 (landscape), 9:16 (vertical), 16:9 (horizontal)",
+    )
+    # Legacy DALL-E settings (kept for backward compatibility if switching back)
     image_size: str = Field(
         default="1024x1024",
-        description="Image size: 1024x1024, 1792x1024, 1024x1792",
+        description="Image size for DALL-E: 1024x1024, 1792x1024, 1024x1792",
     )
     image_quality: str = Field(
         default="standard",
-        description="Image quality: standard, hd",
+        description="Image quality for DALL-E: standard, hd",
     )
     image_style: str = Field(
         default="vivid",
-        description="Image style: vivid, natural",
+        description="Image style for DALL-E: vivid, natural",
     )
 
     # Evaluation Configuration
