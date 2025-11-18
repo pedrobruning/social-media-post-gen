@@ -6,9 +6,8 @@ are connected and how state flows through the system.
 
 from typing import Literal
 
-from langgraph.checkpoint.postgres import PostgresSaver
+from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, StateGraph
-from sqlalchemy import create_engine
 
 from src.agent.nodes import (
     analyze_topic,
@@ -21,10 +20,14 @@ from src.agent.nodes import (
     wait_for_approval,
 )
 from src.agent.state import PostGenerationState
-from src.config.settings import settings
+
+# TODO: For production, use PostgreSQL checkpointer:
+# from langgraph.checkpoint.postgres import PostgresSaver
+# from sqlalchemy import create_engine
+# from src.config.settings import settings
 
 
-def should_regenerate(state: PostGenerationState) -> Literal["regenerate", "finalize"]:
+def should_regenerate(state: PostGenerationState) -> Literal["regenerate", "finalize", "wait"]:
     """Determine if content should be regenerated or finalized.
 
     This is a conditional edge function that routes based on approval status.
@@ -50,9 +53,11 @@ def create_workflow() -> StateGraph:
     Returns:
         Compiled StateGraph ready for execution
     """
-    # Create PostgreSQL checkpointer for persistence
-    engine = create_engine(settings.database_url)
-    checkpointer = PostgresSaver(engine)
+    # Create memory checkpointer for state persistence
+    # TODO: For production, use PostgreSQL checkpointer:
+    # engine = create_engine(settings.database_url)
+    # checkpointer = PostgresSaver(engine)
+    checkpointer = MemorySaver()
 
     # Create workflow graph
     workflow = StateGraph(PostGenerationState)
@@ -86,26 +91,30 @@ def create_workflow() -> StateGraph:
     workflow.add_edge("generate_wordpress", "wait_for_approval")
 
     # Conditional routing after approval
-    # TODO: Implement conditional edge based on approval_status
-    # workflow.add_conditional_edges(
-    #     "wait_for_approval",
-    #     should_regenerate,
-    #     {
-    #         "regenerate": "apply_feedback",
-    #         "finalize": "finalize",
-    #         "wait": "wait_for_approval",  # Stay in wait state
-    #     }
-    # )
+    workflow.add_conditional_edges(
+        "wait_for_approval",
+        should_regenerate,
+        {
+            "regenerate": "apply_feedback",
+            "finalize": "finalize",
+            "wait": "wait_for_approval",  # Stay in wait state
+        },
+    )
 
     # After applying feedback, regenerate content
-    # TODO: Add conditional routing to specific platform nodes based on feedback
+    # For now, regenerate all platforms (selective regeneration can be added later)
     workflow.add_edge("apply_feedback", "generate_linkedin")
+    workflow.add_edge("apply_feedback", "generate_instagram")
+    workflow.add_edge("apply_feedback", "generate_wordpress")
 
     # After finalize, end workflow
     workflow.add_edge("finalize", END)
 
-    # Compile workflow with checkpointer
-    compiled_workflow = workflow.compile(checkpointer=checkpointer)
+    # Compile workflow with checkpointer and interrupt before approval
+    compiled_workflow = workflow.compile(
+        checkpointer=checkpointer,
+        interrupt_before=["wait_for_approval"],  # Explicit interrupt for human review
+    )
 
     return compiled_workflow
 
