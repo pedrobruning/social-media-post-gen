@@ -1,9 +1,11 @@
-"""Tests for image generation using DALL-E 3.
+"""Tests for image generation using Gemini 2.5 Flash Image.
 
 This module tests the ImageGenerator class for generating images via
-DALL-E 3 API, including prompt generation, API calls, and image downloading.
+Gemini 2.5 Flash Image API through OpenRouter, including prompt generation,
+API calls, and base64 image decoding.
 """
 
+import base64
 import shutil
 import tempfile
 from pathlib import Path
@@ -37,11 +39,14 @@ def mock_settings(temp_storage):
     """
     with patch("src.images.generator.settings") as mock_settings:
         mock_settings.image_storage_path = temp_storage
-        mock_settings.image_model = "dall-e-3"
+        mock_settings.image_model = "google/gemini-2.5-flash-image-preview:free"
+        mock_settings.image_aspect_ratio = "1:1"
+        mock_settings.image_format = "png"
+        mock_settings.openrouter_api_key = "sk-test-key"
+        # Legacy DALL-E settings (kept for backward compatibility)
         mock_settings.image_size = "1024x1024"
         mock_settings.image_quality = "standard"
         mock_settings.image_style = "vivid"
-        mock_settings.openrouter_api_key = "sk-test-key"
         yield mock_settings
 
 
@@ -139,20 +144,68 @@ class TestImageGenerator:
             # Should mention DALL-E or image generation
             assert any(word in system_prompt.lower() for word in ["dalle", "image", "visual"])
 
-    def test_call_dalle_api_success(self, mock_settings):
-        """Test successful DALL-E API call via OpenRouter.
+    def test_call_gemini_api_success(self, mock_settings):
+        """Test successful Gemini API call via OpenRouter.
 
         The API should:
-        1. Send prompt to OpenRouter's DALL-E endpoint
-        2. Receive image URL in response
-        3. Return the URL
+        1. Send prompt to OpenRouter's chat completions endpoint
+        2. Receive base64 image in response
+        3. Return the data URL
         """
         generator = ImageGenerator()
         prompt = "A beautiful sunset over mountains"
 
         # Mock the HTTP request to OpenRouter
         with patch("src.images.generator.requests.post") as mock_post:
-            # Setup mock response
+            # Setup mock response with Gemini format
+            mock_response = Mock()
+            mock_response.json.return_value = {
+                "choices": [{
+                    "message": {
+                        "images": ["data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="]
+                    }
+                }]
+            }
+            mock_response.raise_for_status = Mock()
+            mock_post.return_value = mock_response
+
+            # Call the method
+            image_data = generator._call_gemini_api(prompt)
+
+            # Verify the request
+            mock_post.assert_called_once()
+            call_args = mock_post.call_args
+
+            # Should call OpenRouter API
+            assert "openrouter.ai" in call_args[0][0]
+
+            # Should send the prompt in messages format
+            request_body = call_args[1]["json"]
+            assert request_body["messages"][0]["content"] == prompt
+            assert "modalities" in request_body
+            assert "image" in request_body["modalities"]
+
+            # Should include API key in headers
+            headers = call_args[1]["headers"]
+            assert "Authorization" in headers
+
+            # Should return the base64 data URL
+            assert image_data.startswith("data:image/png;base64,")
+
+    def test_call_dalle_api_success(self, mock_settings):
+        """Test successful DALL-E API call.
+
+        The API should:
+        1. Send prompt to OpenAI's DALL-E endpoint
+        2. Receive image URL in response
+        3. Return the URL
+        """
+        generator = ImageGenerator()
+        prompt = "A beautiful sunset over mountains"
+
+        # Mock the HTTP request
+        with patch("src.images.generator.requests.post") as mock_post:
+            # Setup mock response with DALL-E format
             mock_response = Mock()
             mock_response.json.return_value = {
                 "data": [{"url": "https://example.com/image.png"}]
@@ -167,8 +220,8 @@ class TestImageGenerator:
             mock_post.assert_called_once()
             call_args = mock_post.call_args
 
-            # Should call OpenRouter API
-            assert "openrouter.ai" in call_args[0][0] or "api.openai.com" in call_args[0][0]
+            # Should call OpenAI API
+            assert "api.openai.com" in call_args[0][0]
 
             # Should send the prompt in the body
             request_body = call_args[1]["json"]
@@ -188,9 +241,11 @@ class TestImageGenerator:
         - Model (dall-e-3)
         - Size (1024x1024)
         - Quality (standard/hd)
-        - Style (vivid/natural)
         """
         generator = ImageGenerator()
+
+        # Override settings to use DALL-E
+        mock_settings.image_model = "dall-e-3"
 
         with patch("src.images.generator.requests.post") as mock_post:
             mock_response = Mock()
@@ -198,7 +253,8 @@ class TestImageGenerator:
             mock_response.raise_for_status = Mock()
             mock_post.return_value = mock_response
 
-            generator._call_dalle_api("test prompt")
+            # Call directly with model override
+            generator._call_dalle_api("test prompt", model="dall-e-3")
 
             # Check request body parameters
             request_body = mock_post.call_args[1]["json"]
@@ -275,8 +331,8 @@ class TestImageGenerator:
 
         This is the orchestration method that:
         1. Generates optimized prompt from topic
-        2. Calls DALL-E API
-        3. Downloads image
+        2. Calls Gemini API (since that's the default)
+        3. Decodes base64 image
         4. Returns (image_path, prompt)
 
         This is what the agent nodes will call.
@@ -285,37 +341,37 @@ class TestImageGenerator:
         topic = "Sustainable energy solutions"
         post_id = 100
 
+        # Create base64 encoded test image
+        base64_image = base64.b64encode(sample_image_bytes).decode('utf-8')
+        data_url = f"data:image/png;base64,{base64_image}"
+
         # Mock all external calls
         with patch("src.images.generator.LLMRouter") as mock_router_class, \
-             patch("src.images.generator.requests.post") as mock_post, \
-             patch("src.images.generator.requests.get") as mock_get:
+             patch("src.images.generator.requests.post") as mock_post:
 
             # Mock LLM prompt generation
             mock_router = Mock()
             mock_router.generate.return_value = "Solar panels in a green field, photorealistic"
             mock_router_class.return_value = mock_router
 
-            # Mock DALL-E API call
-            mock_dalle_response = Mock()
-            mock_dalle_response.json.return_value = {
-                "data": [{"url": "https://example.com/solar.png"}]
+            # Mock Gemini API call (default model is Gemini)
+            mock_gemini_response = Mock()
+            mock_gemini_response.json.return_value = {
+                "choices": [{
+                    "message": {
+                        "images": [data_url]
+                    }
+                }]
             }
-            mock_dalle_response.raise_for_status = Mock()
-            mock_post.return_value = mock_dalle_response
-
-            # Mock image download
-            mock_download_response = Mock()
-            mock_download_response.content = sample_image_bytes
-            mock_download_response.raise_for_status = Mock()
-            mock_get.return_value = mock_download_response
+            mock_gemini_response.raise_for_status = Mock()
+            mock_post.return_value = mock_gemini_response
 
             # Call the main method
             image_path, prompt_used = generator.generate_image(topic, post_id)
 
-            # Verify all steps were called
+            # Verify steps were called
             mock_router.generate.assert_called_once()
             mock_post.assert_called_once()
-            mock_get.assert_called_once()
 
             # Verify results
             assert prompt_used == "Solar panels in a green field, photorealistic"
@@ -323,37 +379,41 @@ class TestImageGenerator:
             assert f"post_{post_id}" in image_path
 
     def test_generate_image_with_custom_style(self, mock_settings, sample_image_bytes):
-        """Test that custom style parameter is used when provided.
+        """Test that the generate_image method works with custom parameters.
 
-        The style parameter allows overriding the default DALL-E style
-        (vivid vs natural).
+        The style parameter can be used for future enhancements.
         """
         generator = ImageGenerator()
 
+        # Create base64 encoded test image
+        base64_image = base64.b64encode(sample_image_bytes).decode('utf-8')
+        data_url = f"data:image/png;base64,{base64_image}"
+
         with patch("src.images.generator.LLMRouter") as mock_router_class, \
-             patch("src.images.generator.requests.post") as mock_post, \
-             patch("src.images.generator.requests.get") as mock_get:
+             patch("src.images.generator.requests.post") as mock_post:
 
             # Setup mocks
             mock_router = Mock()
             mock_router.generate.return_value = "test prompt"
             mock_router_class.return_value = mock_router
 
-            mock_dalle_response = Mock()
-            mock_dalle_response.json.return_value = {"data": [{"url": "https://example.com/img.png"}]}
-            mock_dalle_response.raise_for_status = Mock()
-            mock_post.return_value = mock_dalle_response
+            mock_gemini_response = Mock()
+            mock_gemini_response.json.return_value = {
+                "choices": [{
+                    "message": {
+                        "images": [data_url]
+                    }
+                }]
+            }
+            mock_gemini_response.raise_for_status = Mock()
+            mock_post.return_value = mock_gemini_response
 
-            mock_download_response = Mock()
-            mock_download_response.content = sample_image_bytes
-            mock_download_response.raise_for_status = Mock()
-            mock_get.return_value = mock_download_response
+            # Call with custom style (currently not used but parameter exists for future)
+            image_path, prompt = generator.generate_image("test topic", 1, style="natural")
 
-            # Call with custom style
-            generator.generate_image("test topic", 1, style="natural")
-
-            # Verify custom style was used (implementation will need to pass this to API)
-            # This test documents the expected behavior
+            # Verify it worked
+            assert Path(image_path).exists()
+            assert prompt == "test prompt"
 
     def test_get_image_path_finds_existing_image(self, mock_settings, sample_image_bytes):
         """Test that get_image_path can locate an existing image.
