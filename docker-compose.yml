@@ -1,0 +1,181 @@
+version: '3.8'
+
+services:
+  # =============================================================================
+  # PostgreSQL - Main Application Database
+  # =============================================================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: social-media-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-secret}
+      POSTGRES_DB: ${POSTGRES_DB:-social_media_posts}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-admin}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  # =============================================================================
+  # PostgreSQL - Langfuse Database
+  # =============================================================================
+  langfuse-postgres:
+    image: postgres:16-alpine
+    container_name: langfuse-postgres
+    environment:
+      POSTGRES_USER: langfuse
+      POSTGRES_PASSWORD: langfuse_secret
+      POSTGRES_DB: langfuse
+    ports:
+      - "5433:5432"  # Different port to avoid conflicts
+    volumes:
+      - langfuse_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U langfuse"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  # =============================================================================
+  # Langfuse - LLM Observability Platform
+  # =============================================================================
+  langfuse:
+    image: langfuse/langfuse:latest
+    container_name: langfuse
+    depends_on:
+      langfuse-postgres:
+        condition: service_healthy
+    environment:
+      # Database connection
+      DATABASE_URL: postgresql://langfuse:langfuse_secret@langfuse-postgres:5432/langfuse
+
+      # Langfuse configuration
+      NEXTAUTH_URL: http://localhost:3000
+      NEXTAUTH_SECRET: ${LANGFUSE_NEXTAUTH_SECRET:-changeme-nextauth-secret-must-be-at-least-32-characters}
+      SALT: ${LANGFUSE_SALT:-changeme-salt-must-be-at-least-32-characters}
+
+      # Optional: Telemetry (set to false if you don't want to send telemetry)
+      TELEMETRY_ENABLED: ${LANGFUSE_TELEMETRY_ENABLED:-true}
+
+      # Optional: Enable all features
+      LANGFUSE_ENABLE_EXPERIMENTAL_FEATURES: ${LANGFUSE_ENABLE_EXPERIMENTAL_FEATURES:-false}
+    ports:
+      - "3000:3000"
+    networks:
+      - app-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/public/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # =============================================================================
+  # Social Media Post Generator API
+  # =============================================================================
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: social-media-app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      langfuse:
+        condition: service_healthy
+    environment:
+      # Database
+      DATABASE_URL: postgresql://${POSTGRES_USER:-admin}:${POSTGRES_PASSWORD:-secret}@postgres:5432/${POSTGRES_DB:-social_media_posts}
+
+      # OpenRouter (required for LLM calls)
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:?OPENROUTER_API_KEY is required}
+
+      # Langfuse (optional, for observability)
+      LANGFUSE_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY:-}
+      LANGFUSE_SECRET_KEY: ${LANGFUSE_SECRET_KEY:-}
+      LANGFUSE_HOST: ${LANGFUSE_HOST:-http://langfuse:3000}
+
+      # Application settings
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      API_HOST: 0.0.0.0
+      API_PORT: 8000
+
+      # Image storage
+      IMAGE_STORAGE_PATH: /app/storage/images
+      MAX_IMAGE_SIZE_MB: ${MAX_IMAGE_SIZE_MB:-10}
+      IMAGE_FORMAT: ${IMAGE_FORMAT:-png}
+
+      # LangGraph checkpoints
+      CHECKPOINT_TABLE_NAME: ${CHECKPOINT_TABLE_NAME:-checkpoints}
+
+      # LLM configuration
+      PRIMARY_MODEL: ${PRIMARY_MODEL:-anthropic/claude-3.5-sonnet}
+      FALLBACK_MODELS: ${FALLBACK_MODELS:-openai/gpt-4o,openai/gpt-3.5-turbo}
+      LLM_TEMPERATURE: ${LLM_TEMPERATURE:-0.7}
+      LLM_MAX_TOKENS: ${LLM_MAX_TOKENS:-2000}
+
+      # Image generation
+      IMAGE_MODEL: ${IMAGE_MODEL:-google/gemini-2.5-flash-image-preview:free}
+      IMAGE_ASPECT_RATIO: ${IMAGE_ASPECT_RATIO:-1:1}
+      IMAGE_SIZE: ${IMAGE_SIZE:-1024x1024}
+      IMAGE_QUALITY: ${IMAGE_QUALITY:-standard}
+      IMAGE_STYLE: ${IMAGE_STYLE:-vivid}
+
+      # Evaluation
+      AUTO_EVALUATE: ${AUTO_EVALUATE:-true}
+      EVALUATION_MODEL: ${EVALUATION_MODEL:-openai/gpt-4o}
+
+      # Security
+      SECRET_KEY: ${SECRET_KEY:-dev-secret-key-change-in-production}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://localhost:8080}
+
+      # Rate limiting
+      RATE_LIMIT_PER_MINUTE: ${RATE_LIMIT_PER_MINUTE:-60}
+    ports:
+      - "8000:8000"
+    volumes:
+      # Mount source code for development (comment out for production)
+      - ./src:/app/src
+      # Persist generated images
+      - ./storage/images:/app/storage/images
+    networks:
+      - app-network
+    restart: unless-stopped
+    command: >
+      sh -c "
+        echo 'Waiting for database to be ready...' &&
+        sleep 5 &&
+        echo 'Running database migrations...' &&
+        alembic upgrade head &&
+        echo 'Starting application...' &&
+        uvicorn src.api.main:app --host 0.0.0.0 --port 8000 --reload
+      "
+
+# =============================================================================
+# Networks
+# =============================================================================
+networks:
+  app-network:
+    driver: bridge
+
+# =============================================================================
+# Volumes
+# =============================================================================
+volumes:
+  postgres_data:
+    driver: local
+  langfuse_postgres_data:
+    driver: local
