@@ -4,11 +4,13 @@ This module defines all API endpoints for creating, retrieving,
 and managing social media posts.
 """
 
-from fastapi import APIRouter, BackgroundTasks, Depends
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from src.db.database import get_db
+from src.db.repositories import EvaluationRepository, PostRepository
+from src.evaluation.runner import EvaluationRunner
 
 # Create API router
 router = APIRouter()
@@ -61,6 +63,30 @@ class EditPostRequest(BaseModel):
 
     platform: str
     content: str
+
+
+class EvaluatePostResponse(BaseModel):
+    """Response model for evaluation initiation."""
+
+    post_id: int
+    status: str
+    message: str
+
+
+class EvaluationResult(BaseModel):
+    """Model for individual evaluation result."""
+
+    metric_name: str
+    score: float
+    evaluator_type: str
+    created_at: str
+
+
+class GetEvaluationsResponse(BaseModel):
+    """Response model for getting post evaluations."""
+
+    post_id: int
+    evaluations: list[EvaluationResult]
 
 
 # Route handlers
@@ -215,7 +241,7 @@ async def edit_post_content(
     pass
 
 
-@router.post("/evaluate/{post_id}")
+@router.post("/evaluate/{post_id}", response_model=EvaluatePostResponse, status_code=202)
 async def evaluate_post(
     post_id: int,
     background_tasks: BackgroundTasks,
@@ -236,11 +262,39 @@ async def evaluate_post(
     Raises:
         HTTPException: If post not found
     """
-    # TODO: Implement evaluation logic
-    pass
+    from src.db.database import SessionLocal
+
+    # Verify post exists
+    post_repo = PostRepository(db)
+    post = post_repo.get_by_id(post_id)
+
+    if not post:
+        raise HTTPException(status_code=404, detail=f"Post {post_id} not found")
+
+    # Run evaluation in background
+    async def run_evaluation():
+        """Background task to run evaluation."""
+        # Create a new database session for the background task
+        db_session = SessionLocal()
+        try:
+            runner = EvaluationRunner()
+            await runner.evaluate_post(post_id, db_session)
+        except Exception as e:
+            # Log error (in production, use proper logging)
+            print(f"Error evaluating post {post_id}: {e}")
+        finally:
+            db_session.close()
+
+    background_tasks.add_task(run_evaluation)
+
+    return EvaluatePostResponse(
+        post_id=post_id,
+        status="evaluation_started",
+        message="Evaluation has been queued and will run in the background",
+    )
 
 
-@router.get("/posts/{post_id}/evaluations")
+@router.get("/posts/{post_id}/evaluations", response_model=GetEvaluationsResponse)
 async def get_post_evaluations(
     post_id: int,
     db: Session = Depends(get_db),
@@ -257,5 +311,26 @@ async def get_post_evaluations(
     Raises:
         HTTPException: If post not found
     """
-    # TODO: Implement get evaluations logic
-    pass
+    # Verify post exists
+    post_repo = PostRepository(db)
+    post = post_repo.get_by_id(post_id)
+
+    if not post:
+        raise HTTPException(status_code=404, detail=f"Post {post_id} not found")
+
+    # Get all evaluations for this post
+    eval_repo = EvaluationRepository(db)
+    evaluations = eval_repo.get_by_post_id(post_id)
+
+    # Convert to response model
+    evaluation_results = [
+        EvaluationResult(
+            metric_name=eval.metric_name,
+            score=eval.score,
+            evaluator_type=eval.evaluator_type,
+            created_at=eval.created_at.isoformat(),
+        )
+        for eval in evaluations
+    ]
+
+    return GetEvaluationsResponse(post_id=post_id, evaluations=evaluation_results)

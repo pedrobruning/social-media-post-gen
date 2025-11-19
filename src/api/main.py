@@ -65,9 +65,9 @@ def create_app() -> FastAPI:
     )
 
     # Register routes
-    # TODO: Import and include routers
-    # from src.api.routes import router
-    # app.include_router(router, prefix="/api")
+    from src.api.routes import router
+
+    app.include_router(router, prefix="/api")
 
     # Health check endpoint
     @app.get("/health")
