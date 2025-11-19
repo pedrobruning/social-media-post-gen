@@ -65,19 +65,55 @@ uv run mypy src/
 ```
 
 ### Docker
+
+The project includes a complete Docker setup with PostgreSQL, Langfuse (LLM observability), and the FastAPI application.
+
+**Quick Start:**
 ```bash
-# Start all services (PostgreSQL + API)
-docker-compose up -d
+# 1. Set up environment (first time only)
+cp .env.docker .env
+# Edit .env and add your OPENROUTER_API_KEY
 
-# View logs
-docker-compose logs -f app
+# 2. Start all services (PostgreSQL, Langfuse, App)
+docker compose up -d
 
-# Run migrations in container
-docker-compose exec app alembic upgrade head
+# 3. Check service health
+docker compose ps
 
-# Stop services
-docker-compose down
+# 4. View logs
+docker compose logs -f app
+
+# 5. Access services
+# - API: http://localhost:8000
+# - API Docs: http://localhost:8000/docs
+# - Langfuse UI: http://localhost:3000
 ```
+
+**Common Operations:**
+```bash
+# Run migrations in container
+docker compose exec app alembic upgrade head
+
+# Run tests
+docker compose exec app pytest
+
+# Format code
+docker compose exec app black src/ tests/
+
+# Stop services (keeps data)
+docker compose down
+
+# Stop and remove all data
+docker compose down -v
+```
+
+**Architecture:**
+- `postgres` - Main application database (port 5432)
+- `langfuse-postgres` - Langfuse database (port 5433)
+- `langfuse` - LLM observability UI (port 3000)
+- `app` - FastAPI application (port 8000)
+
+**For detailed Docker documentation**, see: [docs/DOCKER_SETUP.md](docs/DOCKER_SETUP.md)
 
 ## Architecture
 
@@ -278,7 +314,7 @@ content_repo.create(
 - **Skeleton complete**: All modules have function/class signatures with docstrings
 - **Implementation status**: See TODO.md for detailed phase tracking
 - **Tests**: Currently minimal; TDD starts in Phase 3 (database implementation)
-- **Docker**: Configuration exists but not yet tested
+- **Docker**: Complete setup with PostgreSQL, Langfuse, and app (see docs/DOCKER_SETUP.md)
 
 ## Important Considerations
 
