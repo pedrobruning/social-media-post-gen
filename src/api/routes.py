@@ -606,9 +606,7 @@ async def get_post_image(
     image_path = image_storage.get_image(post_id)
 
     if not image_path:
-        raise HTTPException(
-            status_code=404, detail=f"Image not found for post {post_id}"
-        )
+        raise HTTPException(status_code=404, detail=f"Image not found for post {post_id}")
 
     # Determine media type based on file extension
     path = Path(image_path)

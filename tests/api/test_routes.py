@@ -268,8 +268,8 @@ class TestListPostsEndpoint:
         """Test listing all posts."""
         # Create multiple posts
         post_repo = PostRepository(db)
-        post1 = post_repo.create(topic="AI topic", status="completed")
-        post2 = post_repo.create(topic="ML topic", status="draft")
+        post_repo.create(topic="AI topic", status="completed")
+        post_repo.create(topic="ML topic", status="draft")
 
         response = client.get("/api/posts")
 
@@ -401,9 +401,7 @@ class TestRejectPostEndpoint:
 
     def test_reject_post_not_found(self, client, db):
         """Test rejecting a non-existent post."""
-        response = client.post(
-            "/api/posts/99999/reject", json={"feedback": "Some feedback"}
-        )
+        response = client.post("/api/posts/99999/reject", json={"feedback": "Some feedback"})
 
         assert response.status_code == 404
 
@@ -412,9 +410,7 @@ class TestRejectPostEndpoint:
         post_repo = PostRepository(db)
         post = post_repo.create(topic="Test topic", status="draft")
 
-        response = client.post(
-            f"/api/posts/{post.id}/reject", json={"feedback": "Some feedback"}
-        )
+        response = client.post(f"/api/posts/{post.id}/reject", json={"feedback": "Some feedback"})
 
         assert response.status_code == 400
 
